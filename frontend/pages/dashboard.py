@@ -9,6 +9,7 @@ from frontend.widgets.activity_widget import ActivityWidget
 from frontend.widgets.log_widget import LogWidget
 from frontend.widgets.stat_card import StatCard
 from frontend.widgets.system_status import SystemStatus
+from backend.services.dashboard_service import DashboardService
 
 
 class DashboardPage(QWidget):
@@ -31,8 +32,15 @@ class DashboardPage(QWidget):
 
         cards = QHBoxLayout()
 
-        cards.addWidget(StatCard("Facebook", "Online"))
-        cards.addWidget(StatCard("Groups", "15"))
+        self.facebook_card = StatCard("Facebook", "Offline")
+        self.group_card = StatCard("Groups", "0")
+        self.customer_card = StatCard("Customers", "0")
+        self.ai_card = StatCard("AI Score", "0%")
+
+        cards.addWidget(self.facebook_card)
+        cards.addWidget(self.group_card)
+        cards.addWidget(self.customer_card)
+        cards.addWidget(self.ai_card)
         cards.addWidget(StatCard("Customers", "38"))
         cards.addWidget(StatCard("AI Score", "98%"))
 
@@ -63,3 +71,8 @@ class DashboardPage(QWidget):
         root.addWidget(log_title)
 
         root.addWidget(LogWidget(), 1)
+        DashboardService.register(self)
+        # DashboardService.set_facebook_status("Online")
+        # DashboardService.set_group_count(18)
+        # DashboardService.set_customer_count(52)
+        # DashboardService.set_ai_score("99%")
