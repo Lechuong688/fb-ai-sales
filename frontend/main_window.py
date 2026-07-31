@@ -3,6 +3,9 @@ from frontend.widgets.sidebar import Sidebar
 from frontend.widgets.header import Header
 from frontend.pages.dashboard import DashboardPage
 from frontend.pages.accounts import AccountsPage
+from frontend.pages.groups import GroupsPage
+from frontend.router import PAGES
+from frontend.widgets.status_bar import StatusBar
 from PySide6.QtWidgets import (
     QLabel,
     QHBoxLayout,
@@ -48,16 +51,18 @@ class MainWindow(QMainWindow):
 
         self.stack = QStackedWidget()
 
-        self.stack.addWidget(DashboardPage())
-        self.stack.addWidget(AccountsPage())
-        self.stack.addWidget(self.create_page("Groups"))
-        self.stack.addWidget(self.create_page("Posts"))
-        self.stack.addWidget(self.create_page("Customers"))
-        self.stack.addWidget(self.create_page("AI"))
-        self.stack.addWidget(self.create_page("Reports"))
-        self.stack.addWidget(self.create_page("Settings"))
+        for _, page_class in PAGES:
+
+            if page_class is None:
+                self.stack.addWidget(self.create_page("Coming Soon"))
+            else:
+                self.stack.addWidget(page_class())
 
         content_layout.addWidget(self.stack)
+
+        self.status_bar = StatusBar()
+
+        content_layout.addWidget(self.status_bar)
 
         layout.addWidget(content)
 
