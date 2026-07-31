@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual Environment
+.venv/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+logs/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Playwright profile
+data/user_data/
+backend/data/user_data/
+
+# Python cache
+.pytest_cache/
+.mypy_cache/
+
+# Build
+dist/
+build/
+*.egg-info/

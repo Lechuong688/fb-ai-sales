@@ -1,0 +1,80 @@
+/* ===========================
+   APP
+=========================== */
+
+QMainWindow {
+    background: #18191A;
+    color: white;
+}
+
+QWidget {
+    background: #18191A;
+    color: white;
+    font-family: Segoe UI;
+    font-size: 11pt;
+}
+
+
+/* ===========================
+   SIDEBAR
+=========================== */
+
+QListWidget {
+    background: #25282C;
+    border: none;
+    outline: none;
+}
+
+QListWidget::item {
+    padding: 14px 18px;
+    margin: 4px 8px;
+    border-radius: 8px;
+}
+
+QListWidget::item:hover {
+    background: #3A3D44;
+}
+
+QListWidget::item:selected {
+    background: #3B82F6;
+}
+
+
+/* ===========================
+   HEADER
+=========================== */
+
+QFrame {
+    background: #202225;
+}
+
+
+/* ===========================
+   CARD
+=========================== */
+
+QFrame#statCard {
+    background: #2B2D31;
+    border-radius: 12px;
+}
+
+QLabel#cardTitle {
+    color: #B5BAC1;
+    font-size: 14px;
+}
+
+QLabel#cardValue {
+    font-size: 32px;
+    font-weight: bold;
+}
+
+QFrame#activityWidget {
+    background: #2B2D31;
+    border-radius: 12px;
+    padding: 8px;
+}
+
+QLabel#sectionTitle {
+    font-size: 18px;
+    font-weight: bold;
+}
