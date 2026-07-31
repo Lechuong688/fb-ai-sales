@@ -46,8 +46,8 @@ class MainWindow(QMainWindow):
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(0)
 
-        header = Header()
-        content_layout.addWidget(header)
+        self.header = Header()
+        content_layout.addWidget(self.header)
 
         self.stack = QStackedWidget()
 
@@ -66,8 +66,20 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(content)
 
-        self.sidebar.currentRowChanged.connect(self.stack.setCurrentIndex)
+        self.sidebar.currentRowChanged.connect(self.change_page)
         self.sidebar.setCurrentRow(0)
+    def change_page(self, index):
+        self.stack.setCurrentIndex(index)
+
+        item = self.sidebar.currentItem()
+
+        if item:
+            page_name = item.text()
+
+            self.header.breadcrumb.set_page(page_name)
+
+            self.status_bar.set_status(f"Đã chuyển sang {page_name}")
+        
 
     def create_page(self, title):
         page = QWidget()
