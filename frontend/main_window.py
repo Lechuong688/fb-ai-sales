@@ -2,6 +2,7 @@ from PySide6.QtCore import Qt
 from frontend.widgets.sidebar import Sidebar
 from frontend.widgets.header import Header
 from frontend.pages.dashboard import DashboardPage
+from frontend.pages.accounts import AccountsPage
 from PySide6.QtWidgets import (
     QLabel,
     QHBoxLayout,
@@ -48,7 +49,7 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
 
         self.stack.addWidget(DashboardPage())
-        self.stack.addWidget(self.create_page("Accounts"))
+        self.stack.addWidget(AccountsPage())
         self.stack.addWidget(self.create_page("Groups"))
         self.stack.addWidget(self.create_page("Posts"))
         self.stack.addWidget(self.create_page("Customers"))
