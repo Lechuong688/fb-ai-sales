@@ -5,12 +5,14 @@ from backend.services.dashboard_service import DashboardService
 class BrowserService:
 
     @staticmethod
-    def login():
+    def login(account):
 
-        AppLogger.log("Opening Facebook...")
+        AppLogger.log(f"Đang đăng nhập {account.name}...")
 
-        # Playwright sẽ được thêm sau
+        # TODO: Playwright sẽ được thêm ở Sprint sau
 
-        DashboardService.set_facebook_status("Online")
+        account.status = "Online"
 
-        AppLogger.log("Facebook Login Success")
+        DashboardService.set_facebook_status("🟢 Online")
+
+        AppLogger.log(f"{account.name} đăng nhập thành công.")

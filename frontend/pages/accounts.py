@@ -1,10 +1,11 @@
-from PySide6.QtWidgets import (
-    QTableWidget,
-    QTableWidgetItem,
-)
+from PySide6.QtWidgets import QTableWidgetItem
 
+from backend.services.account_service import AccountService
 from frontend.pages.base_page import BasePage
 from frontend.widgets.base_table import BaseTable
+from PySide6.QtWidgets import QPushButton
+from functools import partial
+from backend.services.browser_service import BrowserService
 
 class AccountsPage(BasePage):
 
@@ -15,11 +16,12 @@ class AccountsPage(BasePage):
             "➕ Thêm tài khoản"
         )
 
-        table = BaseTable()
+        # Tạo bảng
+        self.table = BaseTable()
 
-        table.setColumnCount(5)
+        self.table.setColumnCount(5)
 
-        table.setHorizontalHeaderLabels([
+        self.table.setHorizontalHeaderLabels([
             "Tên",
             "UID",
             "Trạng thái",
@@ -27,18 +29,70 @@ class AccountsPage(BasePage):
             "Hành động"
         ])
 
-        table.setRowCount(2)
+        # Service
+        self.account_service = AccountService()
 
-        table.setItem(0, 0, QTableWidgetItem("Kitchen Care"))
-        table.setItem(0, 1, QTableWidgetItem("10000123"))
-        table.setItem(0, 2, QTableWidgetItem("🟢 Online"))
-        table.setItem(0, 3, QTableWidgetItem("Profile 1"))
-        table.setItem(0, 4, QTableWidgetItem("Login"))
+        # Dữ liệu mẫu
+        self.account_service.load_demo()
 
-        table.setItem(1, 0, QTableWidgetItem("Bosch"))
-        table.setItem(1, 1, QTableWidgetItem("10000888"))
-        table.setItem(1, 2, QTableWidgetItem("🔴 Offline"))
-        table.setItem(1, 3, QTableWidgetItem("Profile 2"))
-        table.setItem(1, 4, QTableWidgetItem("Login"))
+        # Hiển thị dữ liệu
+        self.load_accounts()
 
-        self.set_content(table)
+        # Đưa bảng vào BasePage
+        self.set_content(self.table)
+
+    def load_accounts(self):
+
+        accounts = self.account_service.get_all()
+
+        self.table.setRowCount(len(accounts))
+
+        for row, account in enumerate(accounts):
+
+            self.table.setItem(
+                row,
+                0,
+                QTableWidgetItem(account.name)
+            )
+
+            self.table.setItem(
+                row,
+                1,
+                QTableWidgetItem(account.uid)
+            )
+
+            self.table.setItem(
+                row,
+                2,
+                QTableWidgetItem(account.status)
+            )
+
+            self.table.setItem(
+                row,
+                3,
+                QTableWidgetItem(account.profile)
+            )
+
+            if account.status == "Online":
+                button = QPushButton("🟢 Connected")
+                button.setEnabled(False)
+            else:
+                button = QPushButton("🔑 Login")
+
+                button.clicked.connect(
+                    partial(
+                        self.login_account,
+                        account
+                    )
+                )
+
+            self.table.setCellWidget(
+                row,
+                4,
+                button
+            )
+    def login_account(self, account):
+
+        BrowserService.login(account)
+
+        self.load_accounts()
