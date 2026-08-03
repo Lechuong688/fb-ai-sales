@@ -12,9 +12,13 @@ class BrowserService:
 
         browser = browser_pool.get(account.profile)
 
-        browser.start(account.profile)
+        page = browser.start(account.profile)
+
+        page.goto("https://www.facebook.com/")
 
         if browser.is_logged_in():
+
+            browser.session.logged_in = True
 
             account.status = "Online"
 
@@ -23,14 +27,6 @@ class BrowserService:
             )
 
             signals.facebook_login.emit(account)
-
-            signals.log.emit(
-                f"{account.name} đã Online."
-            )
-
-            signals.status.emit(
-                "Facebook Connected"
-            )
 
         else:
 

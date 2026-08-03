@@ -1,18 +1,23 @@
 from pathlib import Path
+from datetime import datetime
 from playwright.sync_api import sync_playwright
+
+from backend.browser.session import BrowserSession
 
 
 class BrowserManager:
 
     def __init__(self):
+
         self.playwright = None
         self.context = None
         self.page = None
+        self.session = None
 
-    def start(self, profile_name="default"):
+    def start(self, profile_name):
 
-        # Nếu đã mở browser thì dùng lại
-        if self.page:
+        # Đã chạy thì dùng lại
+        if self.session and self.session.running:
             return self.page
 
         self.playwright = sync_playwright().start()
@@ -29,16 +34,34 @@ class BrowserManager:
         else:
             self.page = self.context.new_page()
 
+        self.session = BrowserSession(
+            profile=profile_name,
+            context=self.context,
+            page=self.page,
+            running=True,
+            started_at=datetime.now(),
+            last_active=datetime.now()
+        )
+
         return self.page
 
     def goto(self, url):
+
         self.page.goto(url)
 
     def is_logged_in(self):
 
-        self.goto("https://facebook.com")
+        try:
 
-        return "login" not in self.page.url
+            self.page.wait_for_load_state("networkidle")
+
+            return self.page.locator(
+                '[aria-label="Trang chủ"], [aria-label="Home"]'
+            ).count() > 0
+
+        except Exception:
+
+            return False
 
     def stop(self):
 
@@ -48,5 +71,47 @@ class BrowserManager:
         if self.playwright:
             self.playwright.stop()
 
+        self.context = None
+        self.page = None
+        self.playwright = None
 
-browser_manager = BrowserManager()
+        if self.session:
+            self.session.running = False
+            self.session.logged_in = False
+
+    def get_session(self):
+
+        return self.session
+    
+    def open_url(self, url):
+
+        if self.page is None:
+            raise RuntimeError(
+                "Browser chưa được khởi động."
+            )
+
+        self.page.goto(url)
+
+        if self.session:
+            self.session.last_active = datetime.now()
+
+    def new_tab(self):
+
+        page = self.context.new_page()
+
+        self.page = page
+
+        self.session.page = page
+
+        return page
+    
+    def close_current_tab(self):
+
+        if len(self.context.pages) <= 1:
+            return
+
+        self.page.close()
+
+        self.page = self.context.pages[0]
+
+        self.session.page = self.page

@@ -15,6 +15,20 @@ class BrowserPool:
 
         return self.instances[profile]
 
+    def get_all_sessions(self):
+
+        sessions = []
+
+        for browser in self.instances.values():
+
+            if browser.get_session():
+
+                sessions.append(
+                    browser.get_session()
+                )
+
+        return sessions
+
     def close(self, profile):
 
         if profile in self.instances:
