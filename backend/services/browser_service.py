@@ -1,5 +1,6 @@
+from backend.browser.pool import browser_pool
 from backend.services.logger import AppLogger
-from backend.services.dashboard_service import DashboardService
+from backend.signals import signals
 
 
 class BrowserService:
@@ -7,12 +8,32 @@ class BrowserService:
     @staticmethod
     def login(account):
 
-        AppLogger.log(f"Đang đăng nhập {account.name}...")
+        AppLogger.log(f"Đang mở Facebook cho {account.name}...")
 
-        # TODO: Playwright sẽ được thêm ở Sprint sau
+        browser = browser_pool.get(account.profile)
 
-        account.status = "Online"
+        browser.start(account.profile)
 
-        DashboardService.set_facebook_status("🟢 Online")
+        if browser.is_logged_in():
 
-        AppLogger.log(f"{account.name} đăng nhập thành công.")
+            account.status = "Online"
+
+            AppLogger.log(
+                f"{account.name} đăng nhập thành công."
+            )
+
+            signals.facebook_login.emit(account)
+
+            signals.log.emit(
+                f"{account.name} đã Online."
+            )
+
+            signals.status.emit(
+                "Facebook Connected"
+            )
+
+        else:
+
+            AppLogger.log(
+                "Facebook chưa đăng nhập."
+            )

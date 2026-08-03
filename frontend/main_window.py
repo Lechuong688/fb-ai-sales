@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-
+        self.pages = {}
         self.setWindowTitle("Facebook AI Sales")
         self.resize(1400, 850)
 
@@ -56,7 +56,11 @@ class MainWindow(QMainWindow):
             if page_class is None:
                 self.stack.addWidget(self.create_page("Coming Soon"))
             else:
-                self.stack.addWidget(page_class())
+                page = page_class()
+
+                self.pages[page_class.__name__] = page
+
+                self.stack.addWidget(page)
 
         content_layout.addWidget(self.stack)
 

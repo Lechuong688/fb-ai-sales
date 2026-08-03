@@ -2,7 +2,7 @@ from datetime import datetime
 
 from PySide6.QtWidgets import QListWidget
 
-from backend.services.logger import AppLogger
+from backend.signals import signals
 
 
 class LogWidget(QListWidget):
@@ -10,15 +10,14 @@ class LogWidget(QListWidget):
     def __init__(self):
         super().__init__()
 
-        AppLogger.register(self.add_log)
+        signals.log.connect(self.add_log)
 
         self.add_log("Application Started")
-        self.add_log("Dashboard Loaded")
-        self.add_log("Browser Ready")
 
-    def add_log(self, text: str):
-        current_time = datetime.now().strftime("%H:%M:%S")
+    def add_log(self, text):
 
-        self.addItem(f"[{current_time}] {text}")
+        current = datetime.now().strftime("%H:%M:%S")
+
+        self.addItem(f"[{current}] {text}")
 
         self.scrollToBottom()

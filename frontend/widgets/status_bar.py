@@ -1,24 +1,18 @@
-from PySide6.QtWidgets import (
-    QLabel,
-    QFrame,
-    QHBoxLayout,
-)
+from PySide6.QtWidgets import QLabel
+from backend.signals import signals
 
 
-class StatusBar(QFrame):
+class StatusBar(QLabel):
 
     def __init__(self):
         super().__init__()
 
-        self.setFixedHeight(32)
+        self.setText("Ready")
 
-        layout = QHBoxLayout(self)
-
-        self.label = QLabel("Ready")
-
-        layout.addWidget(self.label)
-
-        layout.addStretch()
+        signals.status.connect(
+            self.set_status
+        )
 
     def set_status(self, text):
-        self.label.setText(text)
+
+        self.setText(text)

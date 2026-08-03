@@ -6,6 +6,7 @@ from frontend.widgets.base_table import BaseTable
 from PySide6.QtWidgets import QPushButton
 from functools import partial
 from backend.services.browser_service import BrowserService
+from backend.signals import signals
 
 class AccountsPage(BasePage):
 
@@ -40,6 +41,10 @@ class AccountsPage(BasePage):
 
         # Đưa bảng vào BasePage
         self.set_content(self.table)
+
+        signals.facebook_login.connect(
+            self.on_login
+        )
 
     def load_accounts(self):
 
@@ -94,5 +99,8 @@ class AccountsPage(BasePage):
     def login_account(self, account):
 
         BrowserService.login(account)
+
+        self.load_accounts()
+    def on_login(self, account):
 
         self.load_accounts()

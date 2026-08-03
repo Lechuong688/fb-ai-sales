@@ -15,17 +15,17 @@ class AccountService:
                 1,
                 "Kitchen Care",
                 "100001",
-                "Profile 1",
-                "Online"
+                "KitchenCare",
+                "Offline"
             ),
 
             FacebookAccount(
                 2,
                 "Bosch",
                 "100002",
-                "Profile 2",
+                "Bosch",
                 "Offline"
-            ),
+            )
 
         ]
 

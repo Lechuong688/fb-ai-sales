@@ -1,17 +1,9 @@
+from backend.signals import signals
+
+
 class AppLogger:
 
-    _listeners = []
-
-    @classmethod
-    def register(cls, callback):
-
-        cls._listeners.append(callback)
-
-    @classmethod
-    def log(cls, text):
-
-        print(text)
-
-        for callback in cls._listeners:
-
-            callback(text)
+    @staticmethod
+    def log(message: str):
+        print(message)
+        signals.log.emit(message)
