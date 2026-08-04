@@ -12,9 +12,12 @@ class AccountsPage(BasePage):
 
     def __init__(self):
         super().__init__(
-            "Accounts",
-            "Quản lý tài khoản Facebook",
-            "➕ Thêm tài khoản"
+            title="Accounts",
+            description="Quản lý tài khoản Facebook",
+            buttons=[
+                ("➕ Thêm", self.add_account),
+                ("🔄 Refresh", self.load_accounts),
+            ]
         )
 
         # Tạo bảng
@@ -104,3 +107,6 @@ class AccountsPage(BasePage):
     def on_login(self, account):
 
         self.load_accounts()
+
+    def add_account(self):
+        print("Add Account")

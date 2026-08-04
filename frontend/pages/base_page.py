@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
 )
 
 from frontend.widgets.page_header import PageHeader
-from frontend.widgets.toolbar import PageToolbar
+from frontend.widgets.toolbar import Toolbar
 
 
 class BasePage(QWidget):
@@ -13,7 +13,7 @@ class BasePage(QWidget):
         self,
         title: str,
         description: str,
-        add_button_text="Thêm"
+        buttons=None,
     ):
         super().__init__()
 
@@ -21,11 +21,21 @@ class BasePage(QWidget):
         self.layout.setContentsMargins(25, 25, 25, 25)
         self.layout.setSpacing(20)
 
-        self.header = PageHeader(title, description)
-        self.toolbar = PageToolbar(add_button_text)
+        # Header
+        self.header = PageHeader(
+            title,
+            description
+        )
 
         self.layout.addWidget(self.header)
+
+        # Toolbar
+        self.toolbar = Toolbar(
+            buttons=buttons
+        )
+
         self.layout.addWidget(self.toolbar)
 
     def set_content(self, widget):
+
         self.layout.addWidget(widget)

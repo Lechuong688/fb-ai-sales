@@ -17,7 +17,11 @@ class BrowserManager:
     def start(self, profile_name):
 
         # Đã chạy thì dùng lại
-        if self.session and self.session.running:
+        if (
+            self.session
+            and self.session.running
+            and self.is_alive()
+        ):
             return self.page
 
         self.playwright = sync_playwright().start()
@@ -115,3 +119,15 @@ class BrowserManager:
         self.page = self.context.pages[0]
 
         self.session.page = self.page
+
+    def is_alive(self):
+
+        if self.page is None:
+            return False
+
+        try:
+            self.page.title()
+            return True
+
+        except Exception:
+            return False

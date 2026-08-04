@@ -1,80 +1,636 @@
-/* ===========================
-   APP
-=========================== */
+/* ==========================================
+   GLOBAL
+========================================== */
 
-QMainWindow {
-    background: #18191A;
-    color: white;
-}
-
+QMainWindow,
 QWidget {
-    background: #18191A;
-    color: white;
-    font-family: Segoe UI;
-    font-size: 11pt;
+    background: #111827;
+    color: #F9FAFB;
+    font-family: "Segoe UI";
+    font-size: 13px;
 }
 
 
-/* ===========================
+/* ==========================================
    SIDEBAR
-=========================== */
+========================================== */
 
 QListWidget {
-    background: #25282C;
+    background: #0F172A;
     border: none;
     outline: none;
+    padding: 12px;
 }
 
 QListWidget::item {
-    padding: 14px 18px;
-    margin: 4px 8px;
-    border-radius: 8px;
+    height: 46px;
+    padding-left: 18px;
+    border-radius: 10px;
+    margin-bottom: 6px;
 }
 
 QListWidget::item:hover {
-    background: #3A3D44;
+    background: #1E293B;
 }
 
 QListWidget::item:selected {
-    background: #3B82F6;
+    background: #2563EB;
+    color: white;
 }
 
 
-/* ===========================
+/* ==========================================
    HEADER
-=========================== */
+========================================== */
 
-QFrame {
-    background: #202225;
+QFrame#header {
+    background: #111827;
+    border-bottom: 1px solid #374151;
 }
 
 
-/* ===========================
-   CARD
-=========================== */
+/* ================= CARD ================= */
 
-QFrame#statCard {
-    background: #2B2D31;
-    border-radius: 12px;
+QFrame#card {
+
+    background: #1F2937;
+
+    border: 1px solid #374151;
+
+    border-radius: 14px;
+}
+
+QFrame#card:hover {
+
+    border: 1px solid #4B5563;
 }
 
 QLabel#cardTitle {
-    color: #B5BAC1;
-    font-size: 14px;
+
+    color: #F9FAFB;
+
+    font-size: 16px;
+
+    font-weight: 600;
 }
+
+
+/* ==========================================
+   CARD VALUE
+========================================== */
 
 QLabel#cardValue {
-    font-size: 32px;
-    font-weight: bold;
+
+    font-size: 34px;
+
+    font-weight: 700;
+
+    color: white;
 }
 
-QFrame#activityWidget {
-    background: #2B2D31;
-    border-radius: 12px;
-    padding: 8px;
-}
+
+/* ==========================================
+   SECTION TITLE
+========================================== */
 
 QLabel#sectionTitle {
-    font-size: 18px;
-    font-weight: bold;
+
+    font-size: 20px;
+
+    font-weight: 700;
+
+    color: white;
+}
+
+
+/* ==========================================
+   BUTTON
+========================================== */
+
+QPushButton {
+
+    background: #2563EB;
+
+    border: none;
+
+    border-radius: 10px;
+
+    min-height: 38px;
+
+    padding: 0 18px;
+
+    color: white;
+
+    font-weight: 600;
+}
+
+QPushButton:hover {
+
+    background: #3B82F6;
+}
+
+QPushButton:pressed {
+
+    background: #1D4ED8;
+}
+
+
+/* ==========================================
+   INPUT
+========================================== */
+
+QLineEdit {
+
+    background: #111827;
+
+    border: 1px solid #374151;
+
+    border-radius: 10px;
+
+    padding: 8px 12px;
+
+    color: white;
+}
+
+QLineEdit:focus {
+
+    border: 1px solid #3B82F6;
+}
+
+
+/* ================= TABLE ================= */
+
+QTableWidget {
+
+    background: #1F2937;
+
+    border: 1px solid #374151;
+
+    border-radius: 14px;
+
+    outline: none;
+
+    gridline-color: transparent;
+}
+
+QTableWidget::item {
+
+    padding: 10px 14px;
+
+    border-bottom: 1px solid #2E3A4D;
+}
+
+QTableWidget::item:selected {
+
+    background: #1D4ED8;
+
+    color: white;
+}
+
+QHeaderView::section {
+
+    background: #111827;
+
+    color: #9CA3AF;
+
+    border: none;
+
+    border-bottom: 1px solid #374151;
+
+    padding: 12px;
+
+    font-weight: 600;
+}
+
+QLabel#breadcrumb {
+
+    color: #9CA3AF;
+
+    font-size: 13px;
+
+    font-weight: 500;
+}
+
+/* ==========================================
+   SCROLLBAR
+========================================== */
+
+QScrollBar:vertical {
+
+    background: transparent;
+
+    width: 10px;
+}
+
+QScrollBar::handle:vertical {
+
+    background: #4B5563;
+
+    border-radius: 5px;
+}
+
+QScrollBar::add-line,
+QScrollBar::sub-line {
+
+    height: 0;
+}
+
+QScrollBar::add-page,
+QScrollBar::sub-page {
+
+    background: transparent;
+}
+
+/* ==========================================
+   STATUS
+========================================== */
+
+QLabel#statusBadge {
+
+    background: #16A34A;
+
+    color: white;
+
+    padding: 6px 14px;
+
+    border-radius: 10px;
+
+    font-size: 12px;
+
+    font-weight: 600;
+}
+
+/* ==========================================
+   LOADING OVERLAY
+========================================== */
+
+QWidget#loadingOverlay {
+
+    background: rgba(17, 24, 39, 210);
+}
+
+
+/* ==========================================
+   LOADING TITLE
+========================================== */
+
+QLabel#loadingTitle {
+
+    color: white;
+
+    font-size: 20px;
+
+    font-weight: 700;
+}
+
+
+/* ==========================================
+   LOADING MESSAGE
+========================================== */
+
+QLabel#loadingMessage {
+
+    color: #9CA3AF;
+
+    font-size: 13px;
+}
+
+
+/* ==========================================
+   PROGRESS BAR
+========================================== */
+
+QProgressBar {
+
+    background: #374151;
+
+    border: none;
+
+    border-radius: 6px;
+
+    height: 10px;
+}
+
+QProgressBar::chunk {
+
+    background: #3B82F6;
+
+    border-radius: 6px;
+}
+
+/* ==========================================
+   LOG
+========================================== */
+
+QListWidget#logWidget {
+
+    background: #111827;
+
+    border: none;
+
+    border-radius: 12px;
+
+    padding: 8px;
+
+    outline: none;
+
+    font-family: Consolas;
+
+    font-size: 12px;
+}
+
+QListWidget#logWidget::item {
+
+    padding: 6px;
+
+    border-radius: 6px;
+}
+
+QListWidget#logWidget::item:hover {
+
+    background: #1F2937;
+}
+
+QListWidget#logWidget::item:selected {
+
+    background: #2563EB;
+}
+
+/* ==========================================
+   PAGE HEADER
+========================================== */
+
+QLabel#pageTitle {
+
+    color: #F9FAFB;
+
+    font-size: 30px;
+
+    font-weight: 700;
+}
+
+QLabel#pageDescription {
+
+    color: #9CA3AF;
+
+    font-size: 13px;
+}
+
+/* ==========================================
+   SIDEBAR
+========================================== */
+
+QListWidget#sidebar {
+
+    background: #0F172A;
+
+    border: none;
+
+    outline: none;
+
+    padding: 10px;
+}
+
+
+/* Item */
+
+QListWidget#sidebar::item {
+
+    height: 42px;
+
+    padding-left: 16px;
+
+    margin-bottom: 4px;
+
+    border-radius: 10px;
+
+    color: #CBD5E1;
+
+    font-size: 13px;
+
+    font-weight: 500;
+}
+
+
+/* Hover */
+
+QListWidget#sidebar::item:hover {
+
+    background: #1E293B;
+}
+
+
+/* Selected */
+
+QListWidget#sidebar::item:selected {
+
+    background: #2563EB;
+
+    color: white;
+
+    font-weight: 600;
+}
+
+/* ==========================================
+   STAT CARD
+========================================== */
+
+QFrame#statCard {
+
+    background: #1F2937;
+
+    border: 1px solid #374151;
+
+    border-radius: 14px;
+}
+
+QFrame#statCard:hover {
+
+    border: 1px solid #4B5563;
+}
+
+
+/* ==========================================
+   CARD TITLE
+========================================== */
+
+QLabel#cardTitle {
+
+    color: #94A3B8;
+
+    font-size: 13px;
+
+    font-weight: 500;
+}
+
+
+/* ==========================================
+   CARD VALUE
+========================================== */
+
+QLabel#cardValue {
+
+    color: white;
+
+    font-size: 30px;
+
+    font-weight: 700;
+}
+
+/* ==========================================
+   STAT CARD
+========================================== */
+
+QFrame#statCard {
+
+    background: #1F2937;
+
+    border: 1px solid #374151;
+
+    border-radius: 14px;
+}
+
+QFrame#statCard:hover {
+
+    border: 1px solid #4B5563;
+}
+
+
+/* ==========================================
+   CARD TITLE
+========================================== */
+
+QLabel#cardTitle {
+
+    color: #94A3B8;
+
+    font-size: 13px;
+
+    font-weight: 500;
+}
+
+
+/* ==========================================
+   CARD VALUE
+========================================== */
+
+QLabel#cardValue {
+
+    color: white;
+
+    font-size: 30px;
+
+    font-weight: 700;
+}
+
+/* ==========================================
+   STATUS BAR
+========================================== */
+
+QLabel#statusBar {
+
+    background: #0F172A;
+
+    color: #CBD5E1;
+
+    border-top: 1px solid #374151;
+
+    padding-left: 12px;
+
+    font-size: 12px;
+
+    font-weight: 500;
+}
+
+/* ==========================================
+   SYSTEM STATUS
+========================================== */
+
+QFrame#card {
+
+    background: #1F2937;
+
+    border: 1px solid #374151;
+
+    border-radius: 14px;
+}
+
+QFrame#card:hover {
+
+    border: 1px solid #4B5563;
+}
+
+QLabel#cardTitle {
+
+    color: white;
+
+    font-size: 16px;
+
+    font-weight: 600;
+}
+
+/* ==========================================
+   TOOLBAR
+========================================== */
+
+QWidget#toolbar {
+
+    background: transparent;
+}
+
+
+/* ==========================================
+   BUTTON
+========================================== */
+
+QPushButton#toolbarButton {
+
+    background: #2563EB;
+
+    color: white;
+
+    border: none;
+
+    border-radius: 10px;
+
+    min-height: 36px;
+
+    padding: 0 16px;
+
+    font-size: 13px;
+
+    font-weight: 600;
+}
+
+QPushButton#toolbarButton:hover {
+
+    background: #3B82F6;
+}
+
+QPushButton#toolbarButton:pressed {
+
+    background: #1D4ED8;
+}
+
+
+/* ==========================================
+   SEARCH
+========================================== */
+
+QLineEdit#toolbarSearch {
+
+    background: #1F2937;
+
+    color: white;
+
+    border: 1px solid #374151;
+
+    border-radius: 10px;
+
+    padding: 8px 12px;
+}
+
+QLineEdit#toolbarSearch:focus {
+
+    border: 1px solid #3B82F6;
 }

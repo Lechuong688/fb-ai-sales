@@ -12,9 +12,13 @@ class BrowserService:
 
         browser = browser_pool.get(account.profile)
 
-        page = browser.start(account.profile)
+        browser = browser_pool.get(account.profile)
 
-        page.goto("https://www.facebook.com/")
+        browser.start(account.profile)
+
+        browser.open_url(
+            "https://www.facebook.com/"
+        )
 
         if browser.is_logged_in():
 

@@ -6,8 +6,10 @@ class Breadcrumb(QLabel):
     def __init__(self):
         super().__init__()
 
-        self.setText("Dashboard")
+        self.setObjectName("breadcrumb")
+
+        self.set_page("Dashboard")
 
     def set_page(self, page):
 
-        self.setText(page)
+        self.setText(f"🏠 {page}")

@@ -13,39 +13,28 @@ class Header(QFrame):
     def __init__(self):
         super().__init__()
 
-        self.setFixedHeight(70)
         self.setObjectName("header")
+        self.setFixedHeight(60)
 
-        # Layout
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(20, 10, 20, 10)
+        layout.setContentsMargins(24, 0, 24, 0)
+        layout.setSpacing(15)
 
-        # Logo / Title
-        self.title = QLabel("Facebook AI Sales")
-        self.title.setStyleSheet("""
-            font-size:22px;
-            font-weight:700;
-        """)
+        # ===== Breadcrumb =====
 
-        # Breadcrumb
         self.breadcrumb = Breadcrumb()
 
-        # Status
+        # ===== Status =====
+
         self.status_label = QLabel("🟢 Running")
-        self.status_label.setAlignment(Qt.AlignRight)
-        self.status_label.setStyleSheet("""
-            font-size:14px;
-        """)
+        self.status_label.setObjectName("statusBadge")
+        self.status_label.setAlignment(Qt.AlignCenter)
 
-        # Layout
-        left = QHBoxLayout()
-        left.addWidget(self.title)
-        left.addSpacing(20)
-        left.addWidget(self.breadcrumb)
+        layout.addWidget(self.breadcrumb)
 
-        layout.addLayout(left)
         layout.addStretch()
+
         layout.addWidget(self.status_label)
 
-    def set_status(self, text):
+    def set_status(self, text: str):
         self.status_label.setText(text)

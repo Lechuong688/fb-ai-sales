@@ -1,14 +1,15 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from playwright.sync_api import BrowserContext
-from playwright.sync_api import Page
+from playwright.sync_api import BrowserContext, Page
 
 
 @dataclass
 class BrowserSession:
 
-    profile: str
+    account_id: int | None = None
+
+    profile: str = ""
 
     context: BrowserContext | None = None
 

@@ -1,3 +1,4 @@
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QWidget,
     QHBoxLayout,
@@ -6,30 +7,90 @@ from PySide6.QtWidgets import (
 )
 
 
-class PageToolbar(QWidget):
+class Toolbar(QWidget):
 
-    def __init__(self, button_text="Add"):
+    searchChanged = Signal(str)
+
+    def __init__(self, buttons=None, has_search=True):
         super().__init__()
 
-        layout = QHBoxLayout(self)
+        self.setObjectName("toolbar")
 
-        self.add_btn = QPushButton(button_text)
+        self.layout = QHBoxLayout(self)
+        self.layout.setContentsMargins(0, 0, 0, 12)
+        self.layout.setSpacing(10)
 
-        self.refresh_btn = QPushButton("🔄 Refresh")
+        self.buttons = []
 
-        self.delete_btn = QPushButton("🗑 Delete")
+        # ================= Buttons =================
 
-        self.export_btn = QPushButton("Export")
+        if buttons:
 
-        self.search = QLineEdit()
+            for text, callback in buttons:
+                self.add_button(text, callback)
 
-        self.search.setPlaceholderText("Search...")
+        self.layout.addStretch()
 
-        layout.addWidget(self.add_btn)
-        layout.addWidget(self.refresh_btn)
-        layout.addWidget(self.delete_btn)
-        layout.addWidget(self.export_btn)
+        # ================= Search =================
 
-        layout.addStretch()
+        self.search = None
 
-        layout.addWidget(self.search)
+        if has_search:
+
+            self.search = QLineEdit()
+
+            self.search.setObjectName("toolbarSearch")
+
+            self.search.setPlaceholderText(
+                "🔍 Tìm kiếm..."
+            )
+
+            self.search.setFixedWidth(260)
+
+            self.search.textChanged.connect(
+                self.searchChanged.emit
+            )
+
+            self.layout.addWidget(self.search)
+
+    # ============================================
+    # Add button
+    # ============================================
+
+    def add_button(self, text, callback):
+
+        button = QPushButton(text)
+
+        button.setObjectName("toolbarButton")
+
+        button.setMinimumHeight(36)
+
+        if callback:
+            button.clicked.connect(callback)
+
+        self.layout.addWidget(button)
+
+        self.buttons.append(button)
+
+        return button
+
+    # ============================================
+    # Search
+    # ============================================
+
+    def text(self):
+
+        if self.search:
+            return self.search.text()
+
+        return ""
+
+    def clear_search(self):
+
+        if self.search:
+            self.search.clear()
+
+    def set_search_visible(self, visible: bool):
+
+        if self.search:
+            self.search.setVisible(visible)

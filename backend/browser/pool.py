@@ -45,5 +45,8 @@ class BrowserPool:
 
         self.instances.clear()
 
+    def exists(self, profile):
+
+        return profile in self.instances
 
 browser_pool = BrowserPool()

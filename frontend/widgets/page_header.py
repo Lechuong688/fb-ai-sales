@@ -1,24 +1,33 @@
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QLabel,
+    QVBoxLayout,
+    QWidget,
+)
 
 
 class PageHeader(QWidget):
+
     def __init__(self, title: str, description: str = ""):
         super().__init__()
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 20)
+        layout.setContentsMargins(0, 0, 0, 18)
+        layout.setSpacing(4)
 
-        title_label = QLabel(title)
-        title_label.setStyleSheet("""
-            font-size:28px;
-            font-weight:bold;
-        """)
+        self.title = QLabel(title)
+        self.title.setObjectName("pageTitle")
 
-        desc = QLabel(description)
-        desc.setStyleSheet("""
-            color:#9CA3AF;
-            font-size:13px;
-        """)
+        self.description = QLabel(description)
+        self.description.setObjectName("pageDescription")
 
-        layout.addWidget(title_label)
-        layout.addWidget(desc)
+        layout.addWidget(self.title)
+
+        if description:
+            layout.addWidget(self.description)
+
+    def set_title(self, text: str):
+        self.title.setText(text)
+
+    def set_description(self, text: str):
+        self.description.setText(text)
+        self.description.setVisible(bool(text))
