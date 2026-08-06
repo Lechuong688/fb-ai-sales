@@ -1,13 +1,20 @@
 from pathlib import Path
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import sessionmaker
 
-# Đảm bảo thư mục data luôn tồn tại
-Path("data").mkdir(exist_ok=True)
 
-DATABASE_URL = "sqlite:///data/database.db"
+DB_PATH = Path("data/app.db")
+
+DB_PATH.parent.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+
+DATABASE_URL = f"sqlite:///{DB_PATH}"
+
 
 engine = create_engine(
     DATABASE_URL,
@@ -15,10 +22,17 @@ engine = create_engine(
     future=True
 )
 
+
 SessionLocal = sessionmaker(
     bind=engine,
     autoflush=False,
-    autocommit=False
+    autocommit=False,
 )
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
+
+
+def get_session():
+    return SessionLocal()

@@ -1,636 +1,369 @@
-/* ==========================================
-   GLOBAL
-========================================== */
-
-QMainWindow,
-QWidget {
-    background: #111827;
-    color: #F9FAFB;
-    font-family: "Segoe UI";
-    font-size: 13px;
-}
-
-
-/* ==========================================
-   SIDEBAR
-========================================== */
-
-QListWidget {
-    background: #0F172A;
-    border: none;
-    outline: none;
-    padding: 12px;
-}
-
-QListWidget::item {
-    height: 46px;
-    padding-left: 18px;
-    border-radius: 10px;
-    margin-bottom: 6px;
-}
-
-QListWidget::item:hover {
-    background: #1E293B;
-}
-
-QListWidget::item:selected {
-    background: #2563EB;
-    color: white;
-}
-
-
-/* ==========================================
-   HEADER
-========================================== */
-
-QFrame#header {
-    background: #111827;
-    border-bottom: 1px solid #374151;
-}
-
-
-/* ================= CARD ================= */
+/* theme.qss */
 
 QFrame#card {
-
-    background: #1F2937;
-
-    border: 1px solid #374151;
-
-    border-radius: 14px;
-}
-
-QFrame#card:hover {
-
-    border: 1px solid #4B5563;
+    background-color: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
 }
 
 QLabel#cardTitle {
+    font-size: 18px;
+    font-weight: bold;
+    color: #1e293b;
+    margin-bottom: 8px; /* Khoảng cách dưới tiêu đề */
+}
 
-    color: #F9FAFB;
+QLabel#activityText {
+    font-size: 14px;
+    color: #475569;
+}
 
+QLabel#iconLabel {
     font-size: 16px;
-
-    font-weight: 600;
 }
 
+/* =========================================
+   BaseTable Styles
+========================================= */
 
-/* ==========================================
-   CARD VALUE
-========================================== */
-
-QLabel#cardValue {
-
-    font-size: 34px;
-
-    font-weight: 700;
-
-    color: white;
+QTableWidget#baseTable {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    outline: none; /* Bỏ viền nét đứt khi focus */
+    color: #334155;
+    font-size: 14px;
 }
 
-
-/* ==========================================
-   SECTION TITLE
-========================================== */
-
-QLabel#sectionTitle {
-
-    font-size: 20px;
-
-    font-weight: 700;
-
-    color: white;
+/* Các ô trong bảng */
+QTableWidget#baseTable::item {
+    padding: 4px 12px;
+    border-bottom: 1px solid #f1f5f9; /* Chỉ tạo đường kẻ ngang (row divider) */
 }
 
-
-/* ==========================================
-   BUTTON
-========================================== */
-
-QPushButton {
-
-    background: #2563EB;
-
-    border: none;
-
-    border-radius: 10px;
-
-    min-height: 38px;
-
-    padding: 0 18px;
-
-    color: white;
-
-    font-weight: 600;
+/* Hiệu ứng khi di chuột qua dòng */
+QTableWidget#baseTable::item:hover {
+    background-color: #f8fafc;
 }
 
-QPushButton:hover {
-
-    background: #3B82F6;
+/* Hiệu ứng khi chọn dòng */
+QTableWidget#baseTable::item:selected {
+    background-color: #e0f2fe; /* Nền xanh nhạt */
+    color: #0369a1; /* Chữ xanh đậm */
 }
 
-QPushButton:pressed {
-
-    background: #1D4ED8;
-}
-
-
-/* ==========================================
-   INPUT
-========================================== */
-
-QLineEdit {
-
-    background: #111827;
-
-    border: 1px solid #374151;
-
-    border-radius: 10px;
-
-    padding: 8px 12px;
-
-    color: white;
-}
-
-QLineEdit:focus {
-
-    border: 1px solid #3B82F6;
-}
-
-
-/* ================= TABLE ================= */
-
-QTableWidget {
-
-    background: #1F2937;
-
-    border: 1px solid #374151;
-
-    border-radius: 14px;
-
-    outline: none;
-
-    gridline-color: transparent;
-}
-
-QTableWidget::item {
-
-    padding: 10px 14px;
-
-    border-bottom: 1px solid #2E3A4D;
-}
-
-QTableWidget::item:selected {
-
-    background: #1D4ED8;
-
-    color: white;
-}
-
+/* Tiêu đề bảng (Header) */
 QHeaderView::section {
-
-    background: #111827;
-
-    color: #9CA3AF;
-
+    background-color: #f8fafc;
+    color: #64748b;
+    font-weight: bold;
+    font-size: 13px;
+    padding: 4px 12px;
     border: none;
-
-    border-bottom: 1px solid #374151;
-
-    padding: 12px;
-
-    font-weight: 600;
+    border-bottom: 1px solid #e2e8f0;
 }
+
+/* Tùy chỉnh thanh cuộn (Scrollbar) cho hiện đại */
+QScrollBar:vertical {
+    border: none;
+    background: #f8fafc;
+    width: 8px;
+    border-radius: 4px;
+    margin: 0px;
+}
+QScrollBar::handle:vertical {
+    background: #cbd5e1;
+    border-radius: 4px;
+    min-height: 20px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #94a3b8;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    border: none;
+    background: none;
+}
+
+/* =========================================
+   Breadcrumb Styles
+========================================= */
 
 QLabel#breadcrumb {
-
-    color: #9CA3AF;
-
-    font-size: 13px;
-
-    font-weight: 500;
+    font-size: 16px;
+    font-weight: bold;
+    color: #334155; /* Màu xám đậm sang trọng */
+    padding: 4px 0px; /* Thêm chút đệm trên/dưới để không bị sát lề */
+    background: transparent; /* Nền trong suốt */
 }
 
-/* ==========================================
-   SCROLLBAR
-========================================== */
+/* =========================================
+   Header Styles
+========================================= */
 
-QScrollBar:vertical {
-
-    background: transparent;
-
-    width: 10px;
+QFrame#header {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e2e8f0; /* Đường viền mờ ngăn cách header và phần dưới */
 }
 
-QScrollBar::handle:vertical {
-
-    background: #4B5563;
-
-    border-radius: 5px;
-}
-
-QScrollBar::add-line,
-QScrollBar::sub-line {
-
-    height: 0;
-}
-
-QScrollBar::add-page,
-QScrollBar::sub-page {
-
-    background: transparent;
-}
-
-/* ==========================================
-   STATUS
-========================================== */
-
+/* Biến Label thành dạng Badge/Pill */
 QLabel#statusBadge {
-
-    background: #16A34A;
-
-    color: white;
-
-    padding: 6px 14px;
-
-    border-radius: 10px;
-
-    font-size: 12px;
-
-    font-weight: 600;
+    background-color: #dcfce7; /* Nền xanh lá cực nhạt */
+    color: #166534; /* Chữ xanh lá đậm */
+    font-weight: bold;
+    font-size: 13px;
+    padding: 6px 14px; /* Tạo không gian bên trong để giống viên thuốc */
+    border-radius: 14px; /* Bo góc bằng một nửa chiều cao để tạo hình oval (Pill) */
+    border: 1px solid #bbf7d0; /* Viền mờ bao quanh badge */
 }
 
-/* ==========================================
-   LOADING OVERLAY
-========================================== */
+/* Trạng thái lỗi hoặc dừng (Sử dụng dynamic property) */
+QLabel#statusBadge[status="stopped"] {
+    background-color: #fee2e2; /* Nền đỏ nhạt */
+    color: #991b1b; /* Chữ đỏ đậm */
+    border: 1px solid #fecaca;
+}
 
+/* =========================================
+   Loading Widget Styles
+========================================= */
+
+/* Lớp phủ bên ngoài làm mờ ứng dụng */
 QWidget#loadingOverlay {
-
-    background: rgba(17, 24, 39, 210);
+    background-color: rgba(15, 23, 42, 0.6); /* Nền đen/xanh navy bóng mờ 60% */
 }
 
-
-/* ==========================================
-   LOADING TITLE
-========================================== */
+/* Hộp thoại hiển thị Loading ở giữa */
+QFrame#loadingBox {
+    background-color: #ffffff;
+    border-radius: 16px;
+}
 
 QLabel#loadingTitle {
-
-    color: white;
-
-    font-size: 20px;
-
-    font-weight: 700;
+    font-size: 18px;
+    font-weight: bold;
+    color: #1e293b;
 }
-
-
-/* ==========================================
-   LOADING MESSAGE
-========================================== */
 
 QLabel#loadingMessage {
-
-    color: #9CA3AF;
-
-    font-size: 13px;
+    font-size: 14px;
+    color: #64748b; /* Màu xám nhạt hơn title */
 }
 
-
-/* ==========================================
-   PROGRESS BAR
-========================================== */
-
+/* Tùy chỉnh thanh Progress Bar */
 QProgressBar {
-
-    background: #374151;
-
+    background-color: #f1f5f9; /* Nền thanh xám cực nhạt */
     border: none;
-
-    border-radius: 6px;
-
-    height: 10px;
+    border-radius: 4px;
+    height: 8px; /* Làm cho thanh nhỏ và thanh lịch hơn */
 }
 
+/* Cục chạy bên trong Progress Bar */
 QProgressBar::chunk {
-
-    background: #3B82F6;
-
-    border-radius: 6px;
+    background-color: #3b82f6; /* Nền xanh dương hiện đại */
+    border-radius: 4px;
 }
 
-/* ==========================================
-   LOG
-========================================== */
+/* =========================================
+   Log Widget Styles
+========================================= */
 
 QListWidget#logWidget {
-
-    background: #111827;
-
-    border: none;
-
-    border-radius: 12px;
-
+    background-color: #f8fafc; /* Nền xám cực nhạt, tạo cảm giác khu vực code/log */
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
     padding: 8px;
-
+    font-family: "Consolas", "Courier New", "Monaco", monospace; /* Font chữ đơn cách */
+    font-size: 13px;
     outline: none;
-
-    font-family: Consolas;
-
-    font-size: 12px;
 }
 
+/* Các dòng log bên trong */
 QListWidget#logWidget::item {
-
-    padding: 6px;
-
-    border-radius: 6px;
+    padding: 3px 6px;
+    border-radius: 4px;
 }
 
 QListWidget#logWidget::item:hover {
-
-    background: #1F2937;
+    background-color: #f1f5f9;
 }
 
 QListWidget#logWidget::item:selected {
-
-    background: #2563EB;
+    background-color: #e0f2fe;
 }
 
-/* ==========================================
-   PAGE HEADER
-========================================== */
+/* Lưu ý: Thanh cuộn (Scrollbar) sẽ tự động lấy giao diện đẹp 
+   mà chúng ta đã thiết kế ở phần BaseTable trước đó. */
+
+   /* =========================================
+   Page Header Styles
+========================================= */
 
 QLabel#pageTitle {
-
-    color: #F9FAFB;
-
-    font-size: 30px;
-
-    font-weight: 700;
+    font-size: 26px; /* Chữ to, nổi bật */
+    font-weight: 900; /* In đậm (Extra Bold) */
+    color: #0f172a; /* Màu xám đen thẫm */
+    letter-spacing: -0.5px; /* Ép khoảng cách các chữ gần lại một chút cho hiện đại */
 }
 
 QLabel#pageDescription {
-
-    color: #9CA3AF;
-
-    font-size: 13px;
+    font-size: 15px;
+    color: #64748b; /* Màu xám dịu mắt, không tranh giành sự chú ý với Title */
 }
 
-/* ==========================================
-   SIDEBAR
-========================================== */
+/* =========================================
+   Sidebar Styles
+========================================= */
 
 QListWidget#sidebar {
-
-    background: #0F172A;
-
+    background-color: #ffffff;
     border: none;
-
+    border-right: 1px solid #e2e8f0; /* Kẻ một đường viền mờ bên phải để phân cách */
+    padding: 16px 12px; /* Lùi vào một chút cho các item không dính sát lề */
     outline: none;
-
-    padding: 10px;
 }
 
-
-/* Item */
-
+/* Các mục (menu items) trong Sidebar */
 QListWidget#sidebar::item {
-
-    height: 42px;
-
-    padding-left: 16px;
-
-    margin-bottom: 4px;
-
-    border-radius: 10px;
-
-    color: #CBD5E1;
-
-    font-size: 13px;
-
+    color: #475569; /* Màu chữ xám tĩnh */
+    font-size: 15px;
     font-weight: 500;
+    padding: 0px 16px; 
+    border-radius: 8px; /* Bo góc mềm mại cho item */
 }
 
-
-/* Hover */
-
+/* Khi người dùng di chuột qua (Hover) */
 QListWidget#sidebar::item:hover {
-
-    background: #1E293B;
+    background-color: #f1f5f9; /* Đổi nền xám cực nhạt */
+    color: #0f172a; /* Chữ đậm lên */
 }
 
-
-/* Selected */
-
+/* Khi người dùng click chọn trang đó (Selected) */
 QListWidget#sidebar::item:selected {
-
-    background: #2563EB;
-
-    color: white;
-
-    font-weight: 600;
+    background-color: #e0f2fe; /* Nền xanh dương nhạt */
+    color: #0284c7; /* Chữ màu xanh đậm */
+    font-weight: bold;
 }
 
-/* ==========================================
-   STAT CARD
-========================================== */
+/* =========================================
+   Stat Card Styles
+========================================= */
 
 QFrame#statCard {
-
-    background: #1F2937;
-
-    border: 1px solid #374151;
-
-    border-radius: 14px;
+    background-color: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
 }
 
-QFrame#statCard:hover {
-
-    border: 1px solid #4B5563;
+/* Tiêu đề của StatCard (Chữ nhỏ, màu xám) */
+QLabel#statTitle {
+    font-size: 14px;
+    font-weight: 600; /* Hơi đậm một chút */
+    color: #64748b; 
 }
 
-
-/* ==========================================
-   CARD TITLE
-========================================== */
-
-QLabel#cardTitle {
-
-    color: #94A3B8;
-
-    font-size: 13px;
-
-    font-weight: 500;
+/* Con số của StatCard (Chữ rất to, đậm, màu tối) */
+QLabel#statValue {
+    font-size: 32px; 
+    font-weight: 900; /* In đậm (Black) */
+    color: #0f172a; 
 }
 
-
-/* ==========================================
-   CARD VALUE
-========================================== */
-
-QLabel#cardValue {
-
-    color: white;
-
-    font-size: 30px;
-
-    font-weight: 700;
-}
-
-/* ==========================================
-   STAT CARD
-========================================== */
-
-QFrame#statCard {
-
-    background: #1F2937;
-
-    border: 1px solid #374151;
-
-    border-radius: 14px;
-}
-
-QFrame#statCard:hover {
-
-    border: 1px solid #4B5563;
-}
-
-
-/* ==========================================
-   CARD TITLE
-========================================== */
-
-QLabel#cardTitle {
-
-    color: #94A3B8;
-
-    font-size: 13px;
-
-    font-weight: 500;
-}
-
-
-/* ==========================================
-   CARD VALUE
-========================================== */
-
-QLabel#cardValue {
-
-    color: white;
-
-    font-size: 30px;
-
-    font-weight: 700;
-}
-
-/* ==========================================
-   STATUS BAR
-========================================== */
+/* =========================================
+   Status Bar Styles
+========================================= */
 
 QLabel#statusBar {
+    background-color: #f8fafc; /* Nền xám cực nhạt (slate-50) để làm nền phụ */
+    border-top: 1px solid #e2e8f0; /* Đường kẻ mờ ở trên cùng */
+    color: #475569; /* Chữ màu xám dịu mắt */
+    font-size: 13px; /* Size chữ nhỏ hơn bình thường một chút */
+    font-weight: 500;
+    padding: 0px 16px; /* Cách lề trái/phải 16px - Thay thế cho dấu cách thủ công */
+}
 
-    background: #0F172A;
+/* =========================================
+   System Status Styles
+========================================= */
 
-    color: #CBD5E1;
-
-    border-top: 1px solid #374151;
-
-    padding-left: 12px;
-
-    font-size: 12px;
-
+QLabel#statusName {
+    font-size: 14px;
+    color: #475569; /* Màu xám tối */
     font-weight: 500;
 }
 
-/* ==========================================
-   SYSTEM STATUS
-========================================== */
-
-QFrame#card {
-
-    background: #1F2937;
-
-    border: 1px solid #374151;
-
-    border-radius: 14px;
+QLabel#statusValue {
+    font-size: 14px;
+    font-weight: bold;
 }
 
-QFrame#card:hover {
-
-    border: 1px solid #4B5563;
+/* Các trạng thái màu sắc tự động cập nhật */
+QLabel#statusValue[state="ok"] {
+    color: #16a34a; /* Xanh lá */
+}
+QLabel#statusValue[state="error"] {
+    color: #dc2626; /* Đỏ */
+}
+QLabel#statusValue[state="warning"] {
+    color: #d97706; /* Cam */
+}
+QLabel#statusValue[state="idle"] {
+    color: #64748b; /* Xám */
 }
 
-QLabel#cardTitle {
+/* =========================================
+   Main Window Styles
+========================================= */
 
-    color: white;
-
-    font-size: 16px;
-
-    font-weight: 600;
+/* Nền của khu vực nội dung chính (Nằm dưới các Card) */
+QWidget#mainContent {
+    background-color: #f1f5f9; /* Màu Slate 100 - Xám cực nhạt */
 }
 
-/* ==========================================
-   TOOLBAR
-========================================== */
-
-QWidget#toolbar {
-
-    background: transparent;
+/* Định dạng cho chữ ở trang "Coming Soon" */
+QLabel#comingSoonText {
+    font-size: 28px;
+    font-weight: 800;
+    color: #94a3b8; /* Slate 400 - Màu xám để không quá chói mắt */
 }
 
+/* =========================================
+   Toolbar Styles
+========================================= */
 
-/* ==========================================
-   BUTTON
-========================================== */
-
+/* Nút bấm (Buttons) */
 QPushButton#toolbarButton {
-
-    background: #2563EB;
-
-    color: white;
-
-    border: none;
-
-    border-radius: 10px;
-
-    min-height: 36px;
-
-    padding: 0 16px;
-
-    font-size: 13px;
-
-    font-weight: 600;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1; /* Viền xám nhạt */
+    border-radius: 6px; /* Bo góc nhẹ tạo cảm giác cứng cáp */
+    color: #334155;
+    font-weight: 500;
+    font-size: 14px;
+    padding: 0px 16px; /* Khoảng cách chữ tới viền trái/phải */
 }
 
+/* Hiệu ứng khi lướt chuột qua nút */
 QPushButton#toolbarButton:hover {
-
-    background: #3B82F6;
+    background-color: #f8fafc;
+    border: 1px solid #94a3b8; /* Viền đậm lên một chút */
 }
 
+/* Hiệu ứng khi bấm chuột xuống */
 QPushButton#toolbarButton:pressed {
-
-    background: #1D4ED8;
+    background-color: #e2e8f0;
 }
 
-
-/* ==========================================
-   SEARCH
-========================================== */
-
+/* Ô tìm kiếm (Search Box) */
 QLineEdit#toolbarSearch {
-
-    background: #1F2937;
-
-    color: white;
-
-    border: 1px solid #374151;
-
-    border-radius: 10px;
-
-    padding: 8px 12px;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 18px; /* Bo góc bằng một nửa chiều cao (36/2) để tạo hình viên thuốc */
+    padding: 0px 16px;
+    color: #0f172a;
+    font-size: 14px;
 }
 
+/* Hiệu ứng khi click vào ô tìm kiếm (Focus) */
 QLineEdit#toolbarSearch:focus {
-
-    border: 1px solid #3B82F6;
+    border: 1px solid #3b82f6; /* Viền chuyển sang xanh dương đậm */
+    background-color: #ffffff;
 }

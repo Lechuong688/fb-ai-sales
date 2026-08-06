@@ -1,4 +1,10 @@
-from sqlalchemy import Column, Integer, String
+from datetime import datetime
+
+from sqlalchemy import DateTime
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
 
 from backend.database.db import Base
 
@@ -7,12 +13,36 @@ class Account(Base):
 
     __tablename__ = "accounts"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
 
-    name = Column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(
+        String(100)
+    )
 
-    uid = Column(String(100), nullable=False)
+    uid: Mapped[str] = mapped_column(
+        String(50)
+    )
 
-    profile = Column(String(255), nullable=False)
+    profile: Mapped[str] = mapped_column(
+        String(100),
+        unique=True
+    )
 
-    status = Column(String(30), default="Offline")
+    status: Mapped[str] = mapped_column(
+        String(30),
+        default="Offline"
+    )
+
+    cookie: Mapped[str] = mapped_column(
+        String,
+        default=""
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now
+    )

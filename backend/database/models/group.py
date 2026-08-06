@@ -1,4 +1,10 @@
-from sqlalchemy import Column, Integer, String
+from datetime import datetime
+
+from sqlalchemy import DateTime
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
 
 from backend.database.db import Base
 
@@ -7,14 +13,37 @@ class Group(Base):
 
     __tablename__ = "groups"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
 
-    name = Column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(
+        String(200)
+    )
 
-    url = Column(String(500), unique=True, nullable=False)
+    url: Mapped[str] = mapped_column(
+        String,
+        unique=True
+    )
 
-    privacy = Column(String(50), default="Unknown")
+    member_count: Mapped[str] = mapped_column(
+        String(30),
+        default="0"
+    )
 
-    members = Column(Integer, default=0)
+    privacy: Mapped[str] = mapped_column(
+        String(30),
+        default="Public"
+    )
 
-    status = Column(String(30), default="New")
+    status: Mapped[str] = mapped_column(
+        String(30),
+        default="Waiting"
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now
+    )
