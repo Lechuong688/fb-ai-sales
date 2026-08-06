@@ -1,8 +1,6 @@
-from PySide6.QtWidgets import (
-    QPushButton,
-    QTableWidgetItem,
-)
+from PySide6.QtWidgets import QTableWidgetItem
 
+from backend.services.group_service import GroupService
 from frontend.pages.base_page import BasePage
 from frontend.widgets.base_table import BaseTable
 
@@ -12,7 +10,7 @@ class GroupsPage(BasePage):
     def __init__(self):
         super().__init__(
             title="Groups",
-            description="Quản lý các nhóm Facebook",
+            description="Quản lý nhóm Facebook",
             buttons=[
                 ("➕ Thêm nhóm", self.add_group),
                 ("🔄 Refresh", self.load_groups),
@@ -21,58 +19,55 @@ class GroupsPage(BasePage):
 
         self.table = BaseTable()
 
-        self.table.setColumnCount(6)
+        self.table.setColumnCount(4)
 
         self.table.setHorizontalHeaderLabels([
-            "Tên nhóm",
-            "Thành viên",
-            "Quyền riêng tư",
-            "Trạng thái",
-            "Mở",
-            "Xóa"
+            "Tên",
+            "URL",
+            "Members",
+            "Status"
         ])
 
-        self.set_content(self.table)
+        self.group_service = GroupService()
+
+        self.group_service.create_demo()
 
         self.load_groups()
 
+        self.set_content(self.table)
+
     def load_groups(self):
 
-        demo = [
-            ("Kitchen Care", "120000", "Public", "Ready"),
-            ("Bosch Việt Nam", "56000", "Private", "Ready"),
-            ("Máy rửa bát", "43000", "Public", "Ready"),
-        ]
+        groups = self.group_service.get_all()
 
-        self.table.setRowCount(len(demo))
+        self.table.setRowCount(0)
+        self.table.setRowCount(len(groups))
 
-        for row, group in enumerate(demo):
+        for row, group in enumerate(groups):
 
             self.table.setItem(
-                row, 0,
-                QTableWidgetItem(group[0])
+                row,
+                0,
+                QTableWidgetItem(group.name)
             )
 
             self.table.setItem(
-                row, 1,
-                QTableWidgetItem(group[1])
+                row,
+                1,
+                QTableWidgetItem(group.url)
             )
 
             self.table.setItem(
-                row, 2,
-                QTableWidgetItem(group[2])
+                row,
+                2,
+                QTableWidgetItem(str(group.member_count))
             )
 
             self.table.setItem(
-                row, 3,
-                QTableWidgetItem(group[3])
+                row,
+                3,
+                QTableWidgetItem(group.status)
             )
-
-            open_btn = QPushButton("🌐 Open")
-            delete_btn = QPushButton("🗑 Delete")
-
-            self.table.setCellWidget(row, 4, open_btn)
-            self.table.setCellWidget(row, 5, delete_btn)
 
     def add_group(self):
         print("Add Group")

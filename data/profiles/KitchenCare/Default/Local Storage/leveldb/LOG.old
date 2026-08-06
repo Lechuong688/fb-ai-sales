@@ -1,3 +1,5 @@
-2026/08/04-17:51:05.010 3aac Reusing MANIFEST D:\Chương\Code\fb-ai-sales\data\profiles\KitchenCare\Default\Local Storage\leveldb/MANIFEST-000001
-2026/08/04-17:51:05.020 3aac Recovering log #3
-2026/08/04-17:51:05.023 3aac Reusing old log D:\Chương\Code\fb-ai-sales\data\profiles\KitchenCare\Default\Local Storage\leveldb/000003.log 
+2026/08/06-17:25:07.355 398c Reusing MANIFEST D:\Chương\Code\fb-ai-sales\data\profiles\KitchenCare\Default\Local Storage\leveldb/MANIFEST-000001
+2026/08/06-17:25:07.389 398c Recovering log #3
+2026/08/06-17:25:07.390 398c Level-0 table #3: started
+2026/08/06-17:25:07.444 398c Level-0 table #3: 19276 bytes OK
+2026/08/06-17:25:07.450 398c Delete type=0 #3

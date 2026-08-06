@@ -88,3 +88,10 @@ class Toolbar(QWidget):
     def set_search_visible(self, visible: bool):
         if self.search:
             self.search.setVisible(visible)
+
+    def first_button(self):
+
+        if self.buttons:
+            return self.buttons[0]
+
+        return None

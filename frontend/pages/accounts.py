@@ -7,19 +7,19 @@ from PySide6.QtWidgets import QPushButton
 from functools import partial
 from backend.services.browser_service import BrowserService
 from backend.signals import signals
+from frontend.dialogs.account_dialog import AccountDialog
 
 class AccountsPage(BasePage):
 
     def __init__(self):
         super().__init__(
             title="Accounts",
-            description="Quản lý tài khoản Facebook",
-            buttons=[
-                ("➕ Thêm", self.add_account),
-                ("🔄 Refresh", self.load_accounts),
-            ]
+            description="Quản lý tài khoản Facebook"
         )
 
+        # self.toolbar.first_button().clicked.connect(
+        #     self.add_account
+        # )
         # Tạo bảng
         self.table = BaseTable()
 
@@ -36,8 +36,12 @@ class AccountsPage(BasePage):
         # Service
         self.account_service = AccountService()
 
+        signals.facebook_login.connect(
+                    self.on_login
+                )
+        
         # Dữ liệu mẫu
-        self.account_service.load_demo()
+        self.account_service.create_demo()
 
         # Hiển thị dữ liệu
         self.load_accounts()
@@ -45,12 +49,11 @@ class AccountsPage(BasePage):
         # Đưa bảng vào BasePage
         self.set_content(self.table)
 
-        signals.facebook_login.connect(
-            self.on_login
-        )
+        
 
     def load_accounts(self):
 
+        self.table.setRowCount(0)
         accounts = self.account_service.get_all()
 
         self.table.setRowCount(len(accounts))
@@ -109,4 +112,17 @@ class AccountsPage(BasePage):
         self.load_accounts()
 
     def add_account(self):
-        print("Add Account")
+
+        dialog = AccountDialog()
+
+        if dialog.exec():
+
+            data = dialog.get_data()
+
+            self.account_service.create(
+                data["name"],
+                data["uid"],
+                data["profile"]
+            )
+
+            self.load_accounts()
