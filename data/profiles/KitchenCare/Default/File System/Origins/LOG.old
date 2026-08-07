@@ -1,2 +1,3 @@
-2026/08/06-17:27:04.804 3d8c Creating DB D:\Chương\Code\fb-ai-sales\data\profiles\KitchenCare\Default\File System\Origins since it was missing.
-2026/08/06-17:27:04.820 3d8c Reusing MANIFEST D:\Chương\Code\fb-ai-sales\data\profiles\KitchenCare\Default\File System\Origins/MANIFEST-000001
+2026/08/07-17:58:10.424 13fc Reusing MANIFEST D:\Chương\Code\fb-ai-sales\data\profiles\KitchenCare\Default\File System\Origins/MANIFEST-000001
+2026/08/07-17:58:10.425 13fc Recovering log #3
+2026/08/07-17:58:10.425 13fc Reusing old log D:\Chương\Code\fb-ai-sales\data\profiles\KitchenCare\Default\File System\Origins/000003.log 

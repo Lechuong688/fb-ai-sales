@@ -29,6 +29,12 @@ class GroupsPage(BasePage):
         ])
 
         self.group_service = GroupService()
+        
+        from backend.signals import signals
+
+        signals.facebook_login.connect(
+            lambda _: self.load_groups()
+        )
 
         self.group_service.create_demo()
 

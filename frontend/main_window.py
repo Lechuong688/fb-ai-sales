@@ -1,4 +1,3 @@
-import os
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QLabel,
@@ -27,24 +26,6 @@ class MainWindow(QMainWindow):
         self.resize(1400, 850)
 
         self.build_ui()
-        
-        # Tự động load và áp dụng toàn bộ giao diện từ file theme.qss
-        self.load_theme()
-
-    def load_theme(self):
-        """Hàm đọc file theme.qss và áp dụng cho toàn MainWindow"""
-        # Xác định đường dẫn file theme.qss (giả định nằm cùng cấp với thư mục chạy app)
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        
-        # Bạn có thể điều chỉnh đường dẫn tương đối tùy theo cấu trúc thư mục của dự án
-        # Ví dụ: os.path.join(current_dir, "..", "theme.qss")
-        qss_path = os.path.join(current_dir, "theme.qss") 
-        
-        try:
-            with open(qss_path, "r", encoding="utf-8") as f:
-                self.setStyleSheet(f.read())
-        except FileNotFoundError:
-            print(f"[CẢNH BÁO] Không tìm thấy file giao diện tại: {qss_path}")
 
     def build_ui(self):
         root = QWidget()

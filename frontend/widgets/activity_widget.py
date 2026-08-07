@@ -1,4 +1,3 @@
-import os
 from PySide6.QtWidgets import (
     QFrame,
     QLabel,
@@ -14,17 +13,6 @@ class ActivityWidget(QFrame):
         super().__init__()
 
         self.setObjectName("card")
-
-        # 1. Đọc giao diện từ file theme.qss
-        # Khuyến nghị dùng đường dẫn tuyệt đối để tránh lỗi khi chạy từ thư mục khác
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        qss_path = os.path.join(current_dir, "theme.qss")
-        
-        try:
-            with open(qss_path, "r", encoding="utf-8") as f:
-                self.setStyleSheet(f.read())
-        except FileNotFoundError:
-            print(f"Lỗi: Không tìm thấy file {qss_path}")
 
         # 2. Hiệu ứng đổ bóng (Shadow) vẫn phải code trong Python vì QSS không hỗ trợ DropShadow trực tiếp
         shadow = QGraphicsDropShadowEffect(self)

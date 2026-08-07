@@ -17,6 +17,8 @@ class BrowserSession:
 
     logged_in: bool = False
 
+    synced: bool = False
+
     running: bool = False
 
     started_at: datetime | None = None

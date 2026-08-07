@@ -16,12 +16,18 @@ class AccountService:
 
         return self.repo.get(account_id)
 
-    def create(
-        self,
-        name,
-        uid,
-        profile
-    ):
+    def get_by_profile(self, profile):
+
+        accounts = self.repo.get_all()
+
+        for account in accounts:
+
+            if account.profile == profile:
+                return account
+
+        return None
+
+    def create(self, name, uid, profile):
 
         account = Account(
             name=name,
@@ -34,25 +40,8 @@ class AccountService:
 
     def update(self, account):
 
-        return self.repo.update(account)
+        self.repo.update(account)
 
     def delete(self, account_id):
 
         self.repo.delete(account_id)
-
-    def create_demo(self):
-
-        if self.get_all():
-            return
-
-        self.create(
-            "Kitchen Care",
-            "100001",
-            "KitchenCare"
-        )
-
-        self.create(
-            "Bosch",
-            "100002",
-            "Bosch"
-        )

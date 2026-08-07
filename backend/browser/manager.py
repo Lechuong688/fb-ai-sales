@@ -1,7 +1,7 @@
 from pathlib import Path
 from datetime import datetime
 from playwright.sync_api import sync_playwright
-
+from backend.browser.facebook import FacebookBrowser
 from backend.browser.session import BrowserSession
 
 
@@ -131,3 +131,8 @@ class BrowserManager:
 
         except Exception:
             return False
+
+    @property
+    def facebook(self):
+
+        return FacebookBrowser(self)

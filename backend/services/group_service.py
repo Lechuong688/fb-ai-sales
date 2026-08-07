@@ -13,17 +13,17 @@ class GroupService:
     def create(self, name, url):
 
         if self.repo.get_by_url(url):
-            return None
+            return
 
         group = Group(
             name=name,
             url=url,
             member_count="0",
-            privacy="Public",
-            status="Waiting"
+            privacy="Unknown",
+            status="Joined"
         )
 
-        return self.repo.add(group)
+        self.repo.add(group)
 
     def delete(self, group_id):
         self.repo.delete(group_id)

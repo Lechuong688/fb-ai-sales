@@ -6,10 +6,11 @@ from PySide6.QtWidgets import QApplication
 
 from frontend.main_window import MainWindow
 
+from backend.services.session_service import SessionService
 
 def load_styles(app, base_dir: Path):
     # Sử dụng đường dẫn tuyệt đối, an toàn dù bạn chạy script từ bất kỳ đâu
-    qss_path = base_dir / "frontend" / "styles" / "theme.qss"
+    qss_path = base_dir / "styles" / "theme.qss"
 
     if qss_path.exists():
         app.setStyleSheet(qss_path.read_text(encoding="utf-8"))
@@ -43,6 +44,10 @@ def main():
 
     window.show()
 
+
+    session_service = SessionService()
+
+    session_service.start()
     # 5. Khởi chạy Event Loop
     sys.exit(app.exec())
 
