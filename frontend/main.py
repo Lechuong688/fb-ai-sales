@@ -45,9 +45,9 @@ def main():
     window.show()
 
 
-    session_service = SessionService()
+    # session_service = SessionService()
 
-    session_service.start()
+    # session_service.start()
     # 5. Khởi chạy Event Loop
     sys.exit(app.exec())
 

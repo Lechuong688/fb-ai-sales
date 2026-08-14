@@ -8,7 +8,6 @@ from backend.services.account_service import AccountService
 from backend.services.browser_service import BrowserService
 from backend.signals import signals
 from backend.workers.browser_worker import BrowserWorker
-from backend.workers.sync_worker import SyncWorker
 
 from frontend.dialogs.account_dialog import AccountDialog
 from frontend.pages.base_page import BasePage
@@ -27,7 +26,7 @@ class AccountsPage(BasePage):
                 ("🔄 Refresh", self.load_accounts)
             ]
         )
-
+        self._threads = []
         self.table = BaseTable()
 
         self.table.setColumnCount(5)
@@ -111,40 +110,69 @@ class AccountsPage(BasePage):
 
     def login_account(self, account):
 
-        self.thread = QThread()
+        profile = account.profile.strip()
 
-        self.worker = BrowserWorker()
+        # Account cũ chưa có Profile
+        if not profile:
 
-        self.worker.moveToThread(
-            self.thread
+            profile = self.account_service._generate_profile(
+                account.name
+            )
+
+            account.profile = profile
+
+            self.account_service.update(
+                account
+            )
+
+            self.load_accounts()
+
+            print(
+                f"Đã tự tạo Profile: {profile}"
+            )
+
+        thread = QThread()
+
+        worker = BrowserWorker()
+
+        self._threads.append(thread)
+
+        worker.moveToThread(thread)
+
+        thread.started.connect(
+            lambda: worker.open_profile(account)
         )
 
-        self.thread.started.connect(
-            lambda: self.worker.open_profile(account)
+        worker.account_updated.connect(
+            self.on_account_updated
         )
 
-        self.worker.finished.connect(
-            self.thread.quit
+        worker.groups_synced.connect(
+            self.on_groups_synced
         )
 
-        self.worker.finished.connect(
-            lambda: self.start_sync(account.profile)
+        worker.error.connect(
+            self.on_browser_error
         )
 
-        self.worker.finished.connect(
-            self.worker.deleteLater
+        worker.finished.connect(
+            thread.quit
         )
 
-        self.thread.finished.connect(
-            self.thread.deleteLater
+        worker.finished.connect(
+            worker.deleteLater
         )
 
-        self.worker.error.connect(
-            print
+        thread.finished.connect(
+            thread.deleteLater
         )
 
-        self.thread.start()
+        thread.finished.connect(
+            lambda: self._remove_thread(thread)
+        )
 
+        thread.start()
+    
     def start_sync(self, profile):
 
         self.sync_thread = QThread()
@@ -200,3 +228,30 @@ class AccountsPage(BasePage):
             )
 
             self.load_accounts()
+
+    def on_account_updated(self, account):
+
+        self.load_accounts()
+
+
+    def on_groups_synced(self, count):
+
+        print(
+            f"Đã đồng bộ {count} nhóm mới."
+        )
+
+
+    def on_browser_error(self, error):
+
+        print(
+            f"Browser error: {error}"
+        )
+
+
+    def _remove_thread(self, thread):
+
+        if thread in self._threads:
+
+            self._threads.remove(
+                thread
+            )

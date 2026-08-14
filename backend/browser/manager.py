@@ -28,6 +28,11 @@ class BrowserManager:
 
         profile = Path(f"data/profiles/{profile_name}")
 
+        profile.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+        
         self.context = self.playwright.chromium.launch_persistent_context(
             user_data_dir=str(profile),
             headless=False

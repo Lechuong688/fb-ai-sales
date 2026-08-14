@@ -1,3 +1,5 @@
+import re
+
 from playwright.sync_api import TimeoutError
 
 
@@ -10,18 +12,19 @@ class FacebookBrowser:
     def page(self):
         return self.browser.page
 
+    # =========================================================
+    # LOGIN
+    # =========================================================
+
     def is_logged_in(self):
 
         try:
+            page = self.page
 
-            self.page.goto(
-                "https://www.facebook.com/me",
-                wait_until="domcontentloaded"
-            )
+            if page is None:
+                return False
 
-            self.page.wait_for_timeout(2000)
-
-            url = self.page.url.lower()
+            url = page.url.lower()
 
             if "login" in url:
                 return False
@@ -29,102 +32,343 @@ class FacebookBrowser:
             if "checkpoint" in url:
                 return False
 
-            return True
+            # Kiểm tra các dấu hiệu đã đăng nhập
+            selectors = [
+                '[aria-label="Trang chủ"]',
+                '[aria-label="Home"]',
+                '[aria-label="Trang cá nhân"]',
+                '[aria-label="Profile"]',
+                '[aria-label="Tài khoản"]',
+                '[role="navigation"]',
+            ]
 
-        except:
+            for selector in selectors:
+
+                try:
+
+                    if page.locator(selector).count() > 0:
+                        return True
+
+                except Exception:
+                    pass
 
             return False
 
+        except Exception:
+
+            return False
+
+    # =========================================================
+    # PROFILE
+    # =========================================================
+
     def get_profile(self):
 
-        self.page.goto(
-            "https://www.facebook.com/me",
-            wait_until="networkidle"
-        )
+        page = self.page
 
-        self.page.wait_for_timeout(2000)
+        if page is None:
+            raise RuntimeError(
+                "Facebook page chưa được mở."
+            )
 
-        url = self.page.url.rstrip("/")
+        # -----------------------------------------------------
+        # Lấy thông tin từ trang hiện tại trước
+        # -----------------------------------------------------
 
-        uid = url.split("/")[-1]
-
+        uid = ""
         name = ""
+
+        try:
+
+            html = page.content()
+
+            patterns = [
+                r'"USER_ID":"(\d+)"',
+                r'"userID":"(\d+)"',
+                r'"user_id":"(\d+)"',
+                r'"actorID":"(\d+)"',
+                r'"actor_id":"(\d+)"',
+                r'"profile_id":"(\d+)"',
+            ]
+
+            for pattern in patterns:
+
+                match = re.search(
+                    pattern,
+                    html
+                )
+
+                if match:
+
+                    uid = match.group(1)
+                    break
+
+        except Exception:
+            pass
+
+        # -----------------------------------------------------
+        # Lấy tên
+        # -----------------------------------------------------
 
         selectors = [
             "h1",
-            'h1 span',
-            '[data-pagelet="ProfileTilesFeed_0"] h1'
+            '[role="main"] h1',
         ]
 
         for selector in selectors:
 
             try:
 
-                if self.page.locator(selector).count():
+                locator = page.locator(
+                    selector
+                )
 
-                    text = self.page.locator(selector).first.inner_text()
+                if locator.count() > 0:
+
+                    text = (
+                        locator.first
+                        .inner_text()
+                        .strip()
+                    )
 
                     if text:
 
                         name = text
-
                         break
 
-            except:
+            except Exception:
                 pass
 
-        return {
-            "uid": uid,
-            "name": name
-        }
+        # -----------------------------------------------------
+        # Thử /me nếu chưa đủ thông tin
+        # -----------------------------------------------------
 
-    def get_groups(self):
+        if not uid or not name:
 
-        self.page.goto(
-            "https://www.facebook.com/groups/feed/",
-            wait_until="networkidle"
-        )
-
-        self.page.wait_for_timeout(5000)
-
-        groups = []
-
-        links = self.page.locator(
-            'a[href*="/groups/"]'
-        )
-
-        for i in range(links.count()):
+            current_url = page.url
 
             try:
 
-                href = links.nth(i).get_attribute("href")
+                page.goto(
+                    "https://www.facebook.com/me",
+                    wait_until="domcontentloaded",
+                    timeout=30000
+                )
 
-                text = links.nth(i).inner_text().strip()
+                page.wait_for_timeout(2500)
 
-                if not href:
-                    continue
+                url = page.url.lower()
 
-                if "/groups/feed" in href:
-                    continue
+                # Không được lấy "www.facebook.com" làm UID
+                if (
+                    "login" not in url
+                    and "checkpoint" not in url
+                ):
 
-                if "/discover/" in href:
-                    continue
+                    try:
 
-                if text == "":
-                    continue
+                        html = page.content()
 
-                groups.append({
-                    "name": text,
-                    "url": href
-                })
+                        patterns = [
+                            r'"USER_ID":"(\d+)"',
+                            r'"userID":"(\d+)"',
+                            r'"user_id":"(\d+)"',
+                            r'"profile_id":"(\d+)"',
+                        ]
 
-            except:
+                        for pattern in patterns:
+
+                            match = re.search(
+                                pattern,
+                                html
+                            )
+
+                            if match:
+
+                                uid = match.group(1)
+                                break
+
+                    except Exception:
+                        pass
+
+                    for selector in selectors:
+
+                        try:
+
+                            locator = page.locator(
+                                selector
+                            )
+
+                            if locator.count() > 0:
+
+                                text = (
+                                    locator.first
+                                    .inner_text()
+                                    .strip()
+                                )
+
+                                if text:
+
+                                    name = text
+                                    break
+
+                        except Exception:
+                            pass
+
+            except Exception:
                 pass
 
-        unique = {}
+        # -----------------------------------------------------
+        # Restore page if necessary
+        # -----------------------------------------------------
 
-        for g in groups:
+        if not page.url or "facebook.com" not in page.url:
 
-            unique[g["url"]] = g
+            try:
+                page.goto(
+                    "https://www.facebook.com/",
+                    wait_until="domcontentloaded",
+                    timeout=30000
+                )
+            except Exception:
+                pass
 
-        return list(unique.values())
+        if uid and not uid.isdigit():
+            uid = ""
+
+        return {
+            "uid": uid,
+            "name": name,
+            "url": page.url
+        }
+
+    # =========================================================
+    # GROUPS
+    # =========================================================
+
+    def get_groups(self):
+
+        page = self.page
+
+        if page is None:
+            raise RuntimeError(
+                "Facebook page chưa được mở."
+            )
+
+        urls = [
+            "https://www.facebook.com/groups/joins/",
+            "https://www.facebook.com/groups/feed/",
+        ]
+
+        groups = {}
+
+        for target_url in urls:
+
+            try:
+
+                page.goto(
+                    target_url,
+                    wait_until="domcontentloaded",
+                    timeout=30000
+                )
+
+                page.wait_for_timeout(4000)
+
+                # Scroll nhiều lần để Facebook load thêm
+                for _ in range(8):
+
+                    page.mouse.wheel(
+                        0,
+                        3000
+                    )
+
+                    page.wait_for_timeout(1200)
+
+                links = page.locator(
+                    'a[href*="/groups/"]'
+                )
+
+                total = links.count()
+
+                for i in range(total):
+
+                    try:
+
+                        link = links.nth(i)
+
+                        href = link.get_attribute(
+                            "href"
+                        )
+
+                        text = (
+                            link
+                            .inner_text()
+                            .strip()
+                        )
+
+                        if not href:
+                            continue
+
+                        if not text:
+                            continue
+
+                        # Chuẩn hóa URL
+                        if href.startswith("/"):
+
+                            href = (
+                                "https://www.facebook.com"
+                                + href
+                            )
+
+                        # Bỏ URL không phải group
+                        if "/groups/feed" in href:
+                            continue
+
+                        if "/groups/joins" in href:
+                            continue
+
+                        if "/groups/discover" in href:
+                            continue
+
+                        if "/groups/search" in href:
+                            continue
+
+                        # Chuẩn hóa
+                        href = href.split("?")[0]
+
+                        # Chỉ nhận URL group
+                        match = re.search(
+                            r"/groups/([^/]+)",
+                            href
+                        )
+
+                        if not match:
+                            continue
+
+                        group_id = match.group(1)
+
+                        # Loại những route hệ thống
+                        if group_id in [
+                            "feed",
+                            "joins",
+                            "discover",
+                            "search",
+                            "create",
+                        ]:
+                            continue
+
+                        groups[href] = {
+                            "name": text,
+                            "url": href
+                        }
+
+                    except Exception:
+                        continue
+
+            except Exception as e:
+
+                print(
+                    f"Group page error: {e}"
+                )
+
+        return list(groups.values())

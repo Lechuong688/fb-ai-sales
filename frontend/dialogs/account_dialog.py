@@ -1,54 +1,89 @@
 from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
-    QHBoxLayout,
     QLineEdit,
-    QPushButton,
-    QVBoxLayout,
+    QDialogButtonBox,
 )
 
 
 class AccountDialog(QDialog):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
 
-        self.setWindowTitle("Thêm tài khoản")
+        super().__init__(parent)
 
-        self.resize(420, 220)
+        self.setWindowTitle(
+            "Thêm tài khoản Facebook"
+        )
 
-        root = QVBoxLayout(self)
+        self.setMinimumWidth(420)
 
-        form = QFormLayout()
+        layout = QFormLayout(self)
 
-        self.name = QLineEdit()
-        self.uid = QLineEdit()
-        self.profile = QLineEdit()
+        self.name_input = QLineEdit()
 
-        form.addRow("Tên", self.name)
-        form.addRow("UID", self.uid)
-        form.addRow("Profile", self.profile)
+        self.name_input.setPlaceholderText(
+            "Ví dụ: Tổng Kho Bếp"
+        )
 
-        root.addLayout(form)
+        self.uid_input = QLineEdit()
 
-        buttons = QHBoxLayout()
+        self.uid_input.setPlaceholderText(
+            "Để trống - app tự lấy UID"
+        )
 
-        self.cancel = QPushButton("Huỷ")
-        self.save = QPushButton("Lưu")
+        self.profile_input = QLineEdit()
 
-        buttons.addStretch()
-        buttons.addWidget(self.cancel)
-        buttons.addWidget(self.save)
+        self.profile_input.setPlaceholderText(
+            "Để trống - app tự tạo Profile"
+        )
 
-        root.addLayout(buttons)
+        layout.addRow(
+            "Tên:",
+            self.name_input
+        )
 
-        self.cancel.clicked.connect(self.reject)
-        self.save.clicked.connect(self.accept)
+        layout.addRow(
+            "UID:",
+            self.uid_input
+        )
+
+        layout.addRow(
+            "Profile:",
+            self.profile_input
+        )
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Ok |
+            QDialogButtonBox.Cancel
+        )
+
+        buttons.accepted.connect(
+            self.validate
+        )
+
+        buttons.rejected.connect(
+            self.reject
+        )
+
+        layout.addRow(buttons)
+
+    def validate(self):
+
+        name = self.name_input.text().strip()
+
+        if not name:
+
+            self.name_input.setFocus()
+
+            return
+
+        self.accept()
 
     def get_data(self):
 
         return {
-            "name": self.name.text().strip(),
-            "uid": self.uid.text().strip(),
-            "profile": self.profile.text().strip()
+            "name": self.name_input.text().strip(),
+            "uid": self.uid_input.text().strip(),
+            "profile": self.profile_input.text().strip(),
         }
