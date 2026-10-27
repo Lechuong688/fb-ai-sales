@@ -46,3 +46,11 @@ class GroupRepository:
             ).first()
         finally:
             db.close()
+
+    def update(self, group):
+        db = SessionLocal()
+        try:
+            db.merge(group)
+            db.commit()
+        finally:
+            db.close()

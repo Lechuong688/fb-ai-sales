@@ -12,6 +12,13 @@ class StatCard(QFrame):
         super().__init__()
 
         self.setObjectName("statCard")
+        variant = {
+            "facebook": "facebook",
+            "groups": "groups",
+            "customers": "customers",
+            "ai score": "ai",
+        }.get(title.lower(), "default")
+        self.setProperty("variant", variant)
         self.setMinimumHeight(120) # Tăng lên 120px cho cân đối với font chữ to
 
         # ===== Hiệu ứng đổ bóng (Shadow) =====

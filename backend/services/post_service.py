@@ -35,3 +35,4 @@ class PostService:
     def get_all(self):
 
         return self.repo.get_all()
+

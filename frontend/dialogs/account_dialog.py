@@ -1,3 +1,5 @@
+from PySide6.QtCore import QRegularExpression
+from PySide6.QtGui import QRegularExpressionValidator
 from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
@@ -27,6 +29,9 @@ class AccountDialog(QDialog):
         )
 
         self.uid_input = QLineEdit()
+        self.uid_input.setValidator(
+            QRegularExpressionValidator(QRegularExpression(r"[0-9]*"), self)
+        )
 
         self.uid_input.setPlaceholderText(
             "Để trống - app tự lấy UID"

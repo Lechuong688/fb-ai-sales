@@ -102,3 +102,9 @@ class MainWindow(QMainWindow):
         layout.addStretch()
 
         return page
+
+    def closeEvent(self, event):
+        accounts_page = self.pages.get("AccountsPage")
+        if accounts_page:
+            accounts_page.shutdown_sessions()
+        event.accept()

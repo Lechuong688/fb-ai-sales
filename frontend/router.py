@@ -5,6 +5,8 @@ from PySide6.QtWidgets import QWidget
 from frontend.pages.dashboard import DashboardPage
 from frontend.pages.accounts import AccountsPage
 from frontend.pages.groups import GroupsPage
+from frontend.pages.comment_page import CommentPage
+from frontend.pages.posts import PostPage
 
 # Định nghĩa kiểu dữ liệu cho một Page (Giúp code tường minh hơn)
 # Tuple gồm: (Tên trang trên Sidebar, Class của Widget hoặc None)
@@ -21,7 +23,8 @@ PAGES: List[PageConfig] = [
     # ==========================
     ("👤 Accounts", AccountsPage),
     ("👥 Groups", GroupsPage),
-    ("📰 Posts", None),
+    ("📰 Posts", PostPage),
+    ("💬 Comment", CommentPage),
     
     # ==========================
     # ENGAGEMENT (Tương tác)

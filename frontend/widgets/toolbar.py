@@ -50,6 +50,12 @@ class Toolbar(QWidget):
     def add_button(self, text, callback):
         button = QPushButton(text)
         button.setObjectName("toolbarButton")
+        button.setProperty(
+            "variant",
+            "danger" if "stop" in text.lower() else
+            "secondary" if "refresh" in text.lower() else
+            "primary",
+        )
         
         # Dùng setFixedHeight thay vì Minimum để nút luôn đều đẹp với khung tìm kiếm
         button.setFixedHeight(36)

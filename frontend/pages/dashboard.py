@@ -18,6 +18,7 @@ class DashboardPage(QWidget):
         super().__init__()
 
         signals.facebook_login.connect(self.on_facebook_login)
+        signals.facebook_status.connect(self.on_facebook_status)
 
         root = QVBoxLayout(self)
         root.setContentsMargins(25, 25, 25, 25)
@@ -87,3 +88,8 @@ class DashboardPage(QWidget):
     def on_facebook_login(self, account):
 
         self.facebook_card.set_value("🟢 Online")
+
+    def on_facebook_status(self, connected):
+        self.facebook_card.set_value(
+            "🟢 Online" if connected else "🔴 Offline"
+        )

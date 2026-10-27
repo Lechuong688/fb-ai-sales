@@ -1,369 +1,447 @@
-/* theme.qss */
+/* Facebook AI Sales - refreshed indigo, teal and coral theme */
 
+QWidget {
+    color: #202945;
+    font-family: "Segoe UI";
+    font-size: 10pt;
+}
+
+QMainWindow,
+QWidget#mainContent {
+    background-color: #F3F6FC;
+}
+
+QFrame#header {
+    background-color: #FFFFFF;
+    border: none;
+    border-bottom: 1px solid #E6EAF4;
+}
+
+QLabel#breadcrumb {
+    color: #44516F;
+    font-size: 12pt;
+    font-weight: 700;
+    padding: 4px 0;
+    background: transparent;
+}
+
+QLabel#statusBadge {
+    color: #087F70;
+    background-color: #DDF8F1;
+    border: 1px solid #B9EDE2;
+    border-radius: 16px;
+    padding: 7px 15px;
+    font-size: 9pt;
+    font-weight: 700;
+}
+
+QLabel#statusBadge[status="stopped"] {
+    color: #B34354;
+    background-color: #FFF0F1;
+    border: 1px solid #F5CDD2;
+}
+
+QListWidget#sidebar {
+    color: #D8E0F2;
+    background-color: #171D3A;
+    border: none;
+    padding: 18px 12px;
+    outline: none;
+}
+
+QListWidget#sidebar::item {
+    color: #B7C3DD;
+    min-height: 44px;
+    padding: 0 14px;
+    margin: 3px 0;
+    border-radius: 10px;
+    font-size: 10pt;
+    font-weight: 600;
+}
+
+QListWidget#sidebar::item:hover {
+    color: #FFFFFF;
+    background-color: #252D50;
+}
+
+QListWidget#sidebar::item:selected {
+    color: #FFFFFF;
+    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                      stop:0 #5265E8, stop:1 #7859E8);
+    border-left: 3px solid #46D6C6;
+    font-weight: 700;
+}
+
+QLabel#pageTitle {
+    color: #182342;
+    font-size: 25pt;
+    font-weight: 800;
+}
+
+QLabel#pageDescription {
+    color: #7783A0;
+    font-size: 10pt;
+}
+
+QFrame#statCard,
 QFrame#card {
-    background-color: #ffffff;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
+    background-color: #FFFFFF;
+    border: 1px solid #E6EAF3;
+    border-radius: 16px;
+}
+
+QFrame#statCard[variant="facebook"] {
+    border-left: 4px solid #1877F2;
+}
+
+QFrame#statCard[variant="groups"] {
+    border-left: 4px solid #15B8A6;
+}
+
+QFrame#statCard[variant="customers"] {
+    border-left: 4px solid #F2A640;
+}
+
+QFrame#statCard[variant="ai"] {
+    border-left: 4px solid #8A63E6;
+}
+
+QFrame#statCard[variant="facebook"] QLabel#statValue { color: #1769D2; }
+QFrame#statCard[variant="groups"] QLabel#statValue { color: #0B9A89; }
+QFrame#statCard[variant="customers"] QLabel#statValue { color: #C98218; }
+QFrame#statCard[variant="ai"] QLabel#statValue { color: #7551C8; }
+
+QLabel#statTitle {
+    color: #7B86A1;
+    font-size: 9pt;
+    font-weight: 700;
+}
+
+QLabel#statValue {
+    color: #1C2948;
+    font-size: 27pt;
+    font-weight: 800;
 }
 
 QLabel#cardTitle {
-    font-size: 18px;
-    font-weight: bold;
-    color: #1e293b;
-    margin-bottom: 8px; /* Khoảng cách dưới tiêu đề */
+    color: #253354;
+    font-size: 13pt;
+    font-weight: 750;
+    margin-bottom: 4px;
 }
 
-QLabel#activityText {
-    font-size: 14px;
-    color: #475569;
+QLabel#activityText,
+QLabel#statusName {
+    color: #586783;
+    font-size: 10pt;
+}
+
+QLabel#activityTime {
+    color: #9AA4BA;
+    font-size: 8pt;
 }
 
 QLabel#iconLabel {
-    font-size: 16px;
+    font-size: 15pt;
 }
 
-/* =========================================
-   BaseTable Styles
-========================================= */
+QWidget#toolbar {
+    background: transparent;
+}
+
+QPushButton {
+    color: #44516F;
+    background-color: #EEF1F9;
+    border: 1px solid #DDE3F0;
+    border-radius: 9px;
+    padding: 8px 14px;
+    font-size: 9pt;
+    font-weight: 650;
+}
+
+QPushButton:hover {
+    color: #3445B8;
+    background-color: #E5E9FF;
+    border-color: #C8D0FB;
+}
+
+QPushButton:pressed {
+    background-color: #D8DEFF;
+}
+
+QPushButton:disabled {
+    color: #99A3B8;
+    background-color: #F1F3F8;
+    border-color: #E4E8F0;
+}
+
+QPushButton#toolbarButton[variant="primary"] {
+    color: #FFFFFF;
+    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                      stop:0 #5865E8, stop:1 #795AE8);
+    border: 1px solid #5865E8;
+}
+
+QPushButton#toolbarButton[variant="primary"]:hover {
+    background-color: #4855D6;
+    border-color: #4855D6;
+}
+
+QPushButton#toolbarButton[variant="secondary"] {
+    color: #4857C8;
+    background-color: #EEF0FF;
+    border-color: #D9DEFF;
+}
+
+QPushButton#toolbarButton[variant="secondary"]:hover {
+    background-color: #E3E7FF;
+}
+
+QPushButton#toolbarButton[variant="danger"] {
+    color: #B34354;
+    background-color: #FFF0F1;
+    border-color: #F3D0D5;
+}
+
+QPushButton#toolbarButton[variant="danger"]:hover {
+    background-color: #FFE3E7;
+    border-color: #EDB9C1;
+}
+
+QPushButton#accountOpenButton {
+    color: #087F70;
+    background-color: #DDF8F1;
+    border-color: #B9EDE2;
+}
+
+QPushButton#accountOpenButton:hover {
+    background-color: #C8F2E9;
+}
+
+QPushButton#accountStopButton {
+    color: #B34354;
+    background-color: #FFF0F1;
+    border-color: #F3D0D5;
+}
+
+QPushButton#accountStopButton:hover {
+    background-color: #FFE3E7;
+}
+
+QPushButton#accountPendingButton {
+    color: #8B6B22;
+    background-color: #FFF6D9;
+    border-color: #F1E3AE;
+}
+
+QLineEdit,
+QTextEdit,
+QPlainTextEdit,
+QComboBox,
+QSpinBox {
+    color: #263451;
+    background-color: #FFFFFF;
+    border: 1px solid #DCE2EF;
+    border-radius: 9px;
+    padding: 8px 11px;
+    selection-background-color: #5865E8;
+    selection-color: #FFFFFF;
+}
+
+QLineEdit:focus,
+QTextEdit:focus,
+QPlainTextEdit:focus,
+QComboBox:focus,
+QSpinBox:focus {
+    border: 1px solid #6874EC;
+    background-color: #FFFFFF;
+}
+
+QLineEdit#toolbarSearch {
+    min-height: 34px;
+    border-radius: 18px;
+    padding: 0 15px;
+    background-color: #F8F9FD;
+}
+
+QTextBrowser#postPreviewText {
+    color: #263451;
+    background-color: #FFFFFF;
+    border: 1px solid #E1E6F0;
+    border-radius: 13px;
+    padding: 12px;
+    selection-background-color: #5865E8;
+    selection-color: #FFFFFF;
+}
+
+QListWidget#postMediaList,
+QListWidget#postMediaFiles {
+    color: #35415F;
+    background-color: #FFFFFF;
+    border: 1px solid #E1E6F0;
+    border-radius: 10px;
+    padding: 6px;
+    outline: none;
+}
+
+QListWidget#postMediaList::item {
+    min-height: 31px;
+    padding: 6px 8px;
+    border-radius: 6px;
+}
+
+QListWidget#postMediaList::item:selected,
+QListWidget#postMediaFiles::item:selected {
+    color: #3445B8;
+    background-color: #E9ECFF;
+}
+
+QLabel#postMediaPreview {
+    color: #7783A0;
+    background-color: #F8F9FD;
+    border: 1px dashed #D5DCEC;
+    border-radius: 12px;
+    padding: 10px;
+}
 
 QTableWidget#baseTable {
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    outline: none; /* Bỏ viền nét đứt khi focus */
-    color: #334155;
-    font-size: 14px;
+    color: #35415F;
+    background-color: #FFFFFF;
+    alternate-background-color: #F8FAFE;
+    border: 1px solid #E1E6F0;
+    border-radius: 13px;
+    outline: none;
+    font-size: 9.5pt;
+    gridline-color: #EEF1F7;
+    selection-background-color: #E9ECFF;
+    selection-color: #3445B8;
 }
 
-/* Các ô trong bảng */
 QTableWidget#baseTable::item {
-    padding: 4px 12px;
-    border-bottom: 1px solid #f1f5f9; /* Chỉ tạo đường kẻ ngang (row divider) */
+    padding: 7px 12px;
+    border-bottom: 1px solid #EDF0F6;
 }
 
-/* Hiệu ứng khi di chuột qua dòng */
 QTableWidget#baseTable::item:hover {
-    background-color: #f8fafc;
+    background-color: #F3F5FF;
 }
 
-/* Hiệu ứng khi chọn dòng */
 QTableWidget#baseTable::item:selected {
-    background-color: #e0f2fe; /* Nền xanh nhạt */
-    color: #0369a1; /* Chữ xanh đậm */
+    background-color: #E9ECFF;
+    color: #3445B8;
 }
 
-/* Tiêu đề bảng (Header) */
 QHeaderView::section {
-    background-color: #f8fafc;
-    color: #64748b;
-    font-weight: bold;
-    font-size: 13px;
-    padding: 4px 12px;
+    color: #687594;
+    background-color: #F5F7FC;
     border: none;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #E1E6F0;
+    padding: 10px 12px;
+    font-size: 9pt;
+    font-weight: 750;
 }
 
-/* Tùy chỉnh thanh cuộn (Scrollbar) cho hiện đại */
-QScrollBar:vertical {
+QLabel#statusValue {
+    font-size: 10pt;
+    font-weight: 750;
+}
+
+QLabel#statusValue[state="ok"] { color: #0B9A82; }
+QLabel#statusValue[state="error"] { color: #D74B62; }
+QLabel#statusValue[state="warning"] { color: #C98716; }
+QLabel#statusValue[state="idle"] { color: #7B86A1; }
+
+QLabel#statusBar {
+    color: #74809A;
+    background-color: #FFFFFF;
+    border-top: 1px solid #E6EAF4;
+    padding: 0 16px;
+    font-size: 9pt;
+}
+
+QListWidget#logWidget {
+    color: #56627D;
+    background-color: #FBFCFF;
+    border: 1px solid #E3E8F2;
+    border-radius: 12px;
+    padding: 8px;
+    font-family: "Cascadia Code", "Consolas", monospace;
+    font-size: 9pt;
+    outline: none;
+}
+
+QListWidget#logWidget::item {
+    padding: 5px 7px;
+    border-radius: 6px;
+}
+
+QListWidget#logWidget::item:hover { background-color: #F0F3FC; }
+QListWidget#logWidget::item:selected { background-color: #E9ECFF; }
+
+QProgressBar {
+    color: #FFFFFF;
+    background-color: #E8ECF5;
     border: none;
-    background: #f8fafc;
-    width: 8px;
-    border-radius: 4px;
-    margin: 0px;
+    border-radius: 5px;
+    height: 9px;
+    text-align: center;
 }
-QScrollBar::handle:vertical {
-    background: #cbd5e1;
-    border-radius: 4px;
-    min-height: 20px;
+
+QProgressBar::chunk {
+    background-color: #5865E8;
+    border-radius: 5px;
 }
-QScrollBar::handle:vertical:hover {
-    background: #94a3b8;
+
+QFrame#loadingBox {
+    background-color: #FFFFFF;
+    border: 1px solid #E4E8F1;
+    border-radius: 18px;
 }
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+
+QLabel#loadingTitle {
+    color: #253354;
+    font-size: 14pt;
+    font-weight: 750;
+}
+
+QLabel#loadingMessage { color: #7783A0; }
+QLabel#comingSoonText { color: #74809A; font-size: 25pt; font-weight: 800; }
+
+QScrollBar:vertical,
+QScrollBar:horizontal {
+    background: transparent;
+    border: none;
+    margin: 2px;
+}
+
+QScrollBar:vertical { width: 10px; }
+QScrollBar:horizontal { height: 10px; }
+
+QScrollBar::handle:vertical,
+QScrollBar::handle:horizontal {
+    background: #C9D1E2;
+    border-radius: 5px;
+    min-height: 26px;
+    min-width: 26px;
+}
+
+QScrollBar::handle:vertical:hover,
+QScrollBar::handle:horizontal:hover { background: #AAB6CE; }
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical,
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal {
     border: none;
     background: none;
 }
 
-/* =========================================
-   Breadcrumb Styles
-========================================= */
-
-QLabel#breadcrumb {
-    font-size: 16px;
-    font-weight: bold;
-    color: #334155; /* Màu xám đậm sang trọng */
-    padding: 4px 0px; /* Thêm chút đệm trên/dưới để không bị sát lề */
-    background: transparent; /* Nền trong suốt */
+QToolTip {
+    color: #FFFFFF;
+    background-color: #202945;
+    border: 1px solid #3A4666;
+    border-radius: 6px;
+    padding: 6px 8px;
 }
 
-/* =========================================
-   Header Styles
-========================================= */
-
-QFrame#header {
-    background-color: #ffffff;
-    border-bottom: 1px solid #e2e8f0; /* Đường viền mờ ngăn cách header và phần dưới */
-}
-
-/* Biến Label thành dạng Badge/Pill */
-QLabel#statusBadge {
-    background-color: #dcfce7; /* Nền xanh lá cực nhạt */
-    color: #166534; /* Chữ xanh lá đậm */
-    font-weight: bold;
-    font-size: 13px;
-    padding: 6px 14px; /* Tạo không gian bên trong để giống viên thuốc */
-    border-radius: 14px; /* Bo góc bằng một nửa chiều cao để tạo hình oval (Pill) */
-    border: 1px solid #bbf7d0; /* Viền mờ bao quanh badge */
-}
-
-/* Trạng thái lỗi hoặc dừng (Sử dụng dynamic property) */
-QLabel#statusBadge[status="stopped"] {
-    background-color: #fee2e2; /* Nền đỏ nhạt */
-    color: #991b1b; /* Chữ đỏ đậm */
-    border: 1px solid #fecaca;
-}
-
-/* =========================================
-   Loading Widget Styles
-========================================= */
-
-/* Lớp phủ bên ngoài làm mờ ứng dụng */
-QWidget#loadingOverlay {
-    background-color: rgba(15, 23, 42, 0.6); /* Nền đen/xanh navy bóng mờ 60% */
-}
-
-/* Hộp thoại hiển thị Loading ở giữa */
-QFrame#loadingBox {
-    background-color: #ffffff;
-    border-radius: 16px;
-}
-
-QLabel#loadingTitle {
-    font-size: 18px;
-    font-weight: bold;
-    color: #1e293b;
-}
-
-QLabel#loadingMessage {
-    font-size: 14px;
-    color: #64748b; /* Màu xám nhạt hơn title */
-}
-
-/* Tùy chỉnh thanh Progress Bar */
-QProgressBar {
-    background-color: #f1f5f9; /* Nền thanh xám cực nhạt */
-    border: none;
-    border-radius: 4px;
-    height: 8px; /* Làm cho thanh nhỏ và thanh lịch hơn */
-}
-
-/* Cục chạy bên trong Progress Bar */
-QProgressBar::chunk {
-    background-color: #3b82f6; /* Nền xanh dương hiện đại */
-    border-radius: 4px;
-}
-
-/* =========================================
-   Log Widget Styles
-========================================= */
-
-QListWidget#logWidget {
-    background-color: #f8fafc; /* Nền xám cực nhạt, tạo cảm giác khu vực code/log */
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 8px;
-    font-family: "Consolas", "Courier New", "Monaco", monospace; /* Font chữ đơn cách */
-    font-size: 13px;
-    outline: none;
-}
-
-/* Các dòng log bên trong */
-QListWidget#logWidget::item {
-    padding: 3px 6px;
-    border-radius: 4px;
-}
-
-QListWidget#logWidget::item:hover {
-    background-color: #f1f5f9;
-}
-
-QListWidget#logWidget::item:selected {
-    background-color: #e0f2fe;
-}
-
-/* Lưu ý: Thanh cuộn (Scrollbar) sẽ tự động lấy giao diện đẹp 
-   mà chúng ta đã thiết kế ở phần BaseTable trước đó. */
-
-   /* =========================================
-   Page Header Styles
-========================================= */
-
-QLabel#pageTitle {
-    font-size: 26px; /* Chữ to, nổi bật */
-    font-weight: 900; /* In đậm (Extra Bold) */
-    color: #0f172a; /* Màu xám đen thẫm */
-    letter-spacing: -0.5px; /* Ép khoảng cách các chữ gần lại một chút cho hiện đại */
-}
-
-QLabel#pageDescription {
-    font-size: 15px;
-    color: #64748b; /* Màu xám dịu mắt, không tranh giành sự chú ý với Title */
-}
-
-/* =========================================
-   Sidebar Styles
-========================================= */
-
-QListWidget#sidebar {
-    background-color: #ffffff;
-    border: none;
-    border-right: 1px solid #e2e8f0; /* Kẻ một đường viền mờ bên phải để phân cách */
-    padding: 16px 12px; /* Lùi vào một chút cho các item không dính sát lề */
-    outline: none;
-}
-
-/* Các mục (menu items) trong Sidebar */
-QListWidget#sidebar::item {
-    color: #475569; /* Màu chữ xám tĩnh */
-    font-size: 15px;
-    font-weight: 500;
-    padding: 0px 16px; 
-    border-radius: 8px; /* Bo góc mềm mại cho item */
-}
-
-/* Khi người dùng di chuột qua (Hover) */
-QListWidget#sidebar::item:hover {
-    background-color: #f1f5f9; /* Đổi nền xám cực nhạt */
-    color: #0f172a; /* Chữ đậm lên */
-}
-
-/* Khi người dùng click chọn trang đó (Selected) */
-QListWidget#sidebar::item:selected {
-    background-color: #e0f2fe; /* Nền xanh dương nhạt */
-    color: #0284c7; /* Chữ màu xanh đậm */
-    font-weight: bold;
-}
-
-/* =========================================
-   Stat Card Styles
-========================================= */
-
-QFrame#statCard {
-    background-color: #ffffff;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
-}
-
-/* Tiêu đề của StatCard (Chữ nhỏ, màu xám) */
-QLabel#statTitle {
-    font-size: 14px;
-    font-weight: 600; /* Hơi đậm một chút */
-    color: #64748b; 
-}
-
-/* Con số của StatCard (Chữ rất to, đậm, màu tối) */
-QLabel#statValue {
-    font-size: 32px; 
-    font-weight: 900; /* In đậm (Black) */
-    color: #0f172a; 
-}
-
-/* =========================================
-   Status Bar Styles
-========================================= */
-
-QLabel#statusBar {
-    background-color: #f8fafc; /* Nền xám cực nhạt (slate-50) để làm nền phụ */
-    border-top: 1px solid #e2e8f0; /* Đường kẻ mờ ở trên cùng */
-    color: #475569; /* Chữ màu xám dịu mắt */
-    font-size: 13px; /* Size chữ nhỏ hơn bình thường một chút */
-    font-weight: 500;
-    padding: 0px 16px; /* Cách lề trái/phải 16px - Thay thế cho dấu cách thủ công */
-}
-
-/* =========================================
-   System Status Styles
-========================================= */
-
-QLabel#statusName {
-    font-size: 14px;
-    color: #475569; /* Màu xám tối */
-    font-weight: 500;
-}
-
-QLabel#statusValue {
-    font-size: 14px;
-    font-weight: bold;
-}
-
-/* Các trạng thái màu sắc tự động cập nhật */
-QLabel#statusValue[state="ok"] {
-    color: #16a34a; /* Xanh lá */
-}
-QLabel#statusValue[state="error"] {
-    color: #dc2626; /* Đỏ */
-}
-QLabel#statusValue[state="warning"] {
-    color: #d97706; /* Cam */
-}
-QLabel#statusValue[state="idle"] {
-    color: #64748b; /* Xám */
-}
-
-/* =========================================
-   Main Window Styles
-========================================= */
-
-/* Nền của khu vực nội dung chính (Nằm dưới các Card) */
-QWidget#mainContent {
-    background-color: #f1f5f9; /* Màu Slate 100 - Xám cực nhạt */
-}
-
-/* Định dạng cho chữ ở trang "Coming Soon" */
-QLabel#comingSoonText {
-    font-size: 28px;
-    font-weight: 800;
-    color: #94a3b8; /* Slate 400 - Màu xám để không quá chói mắt */
-}
-
-/* =========================================
-   Toolbar Styles
-========================================= */
-
-/* Nút bấm (Buttons) */
-QPushButton#toolbarButton {
-    background-color: #ffffff;
-    border: 1px solid #cbd5e1; /* Viền xám nhạt */
-    border-radius: 6px; /* Bo góc nhẹ tạo cảm giác cứng cáp */
-    color: #334155;
-    font-weight: 500;
-    font-size: 14px;
-    padding: 0px 16px; /* Khoảng cách chữ tới viền trái/phải */
-}
-
-/* Hiệu ứng khi lướt chuột qua nút */
-QPushButton#toolbarButton:hover {
-    background-color: #f8fafc;
-    border: 1px solid #94a3b8; /* Viền đậm lên một chút */
-}
-
-/* Hiệu ứng khi bấm chuột xuống */
-QPushButton#toolbarButton:pressed {
-    background-color: #e2e8f0;
-}
-
-/* Ô tìm kiếm (Search Box) */
-QLineEdit#toolbarSearch {
-    background-color: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-radius: 18px; /* Bo góc bằng một nửa chiều cao (36/2) để tạo hình viên thuốc */
-    padding: 0px 16px;
-    color: #0f172a;
-    font-size: 14px;
-}
-
-/* Hiệu ứng khi click vào ô tìm kiếm (Focus) */
-QLineEdit#toolbarSearch:focus {
-    border: 1px solid #3b82f6; /* Viền chuyển sang xanh dương đậm */
-    background-color: #ffffff;
-}
+QMessageBox { background-color: #F7F8FC; }

@@ -11,7 +11,19 @@ class AccountService:
         self.repo = AccountRepository()
 
     def get_all(self):
-        return self.repo.get_all()
+        accounts = self.repo.get_all()
+
+        # Older login attempts could store the site URL in the UID column.
+        # Facebook UIDs are numeric, so clear invalid legacy values instead
+        # of continuing to display them as if the account were linked.
+        for account in accounts:
+            uid = (account.uid or "").strip()
+            if uid and not uid.isdigit():
+                account.uid = ""
+                account.status = "Offline"
+                self.repo.update(account)
+
+        return accounts
 
     def get(self, account_id):
         return self.repo.get(account_id)
@@ -69,6 +81,9 @@ class AccountService:
                 "Tên tài khoản không được để trống."
             )
 
+        if uid and not uid.isdigit():
+            raise ValueError("UID phải chỉ gồm chữ số.")
+
         # Không nhập Profile -> tự tạo
         if not profile:
             profile = self._generate_profile(name)
@@ -82,7 +97,35 @@ class AccountService:
 
         return self.repo.add(account)
 
+    def create_pending_facebook(self):
+        """Create an empty account slot with a unique persistent browser profile."""
+        used_profiles = {
+            account.profile
+            for account in self.repo.get_all()
+            if account.profile
+        }
+
+        number = 1
+        profile = f"Facebook{number}"
+        while profile in used_profiles:
+            number += 1
+            profile = f"Facebook{number}"
+
+        account = Account(
+            name=f"Facebook {number}",
+            uid="",
+            profile=profile,
+            status="Offline",
+        )
+        return self.repo.add(account)
+
     def update(self, account):
+
+        uid = (account.uid or "").strip()
+        if uid and not uid.isdigit():
+            raise ValueError("UID phải chỉ gồm chữ số.")
+
+        account.uid = uid
 
         self.repo.update(account)
 
