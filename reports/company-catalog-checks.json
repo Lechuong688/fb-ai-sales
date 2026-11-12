@@ -1,0 +1,9 @@
+{
+  "case_count": 4854,
+  "products": 1244,
+  "statuses": {
+    "draft": 674,
+    "manual_review": 4180
+  },
+  "failures": []
+}

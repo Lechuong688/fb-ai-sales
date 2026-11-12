@@ -1,0 +1,65 @@
+"""Offline examples for human review and regression tests; no Facebook URLs."""
+
+
+SAMPLE_CASES = [
+    ("Có bác nào có bếp từ này không?", "availability"),
+    ("co bac nao co bep tu nay khong", "availability"),
+    ("CÓ BÁC NÀO CÓ BẾP TỪ NÀY KHÔNG???", "availability"),
+    ("Có bác nào có\n bếp từ này không, cho mình thông tin với", "availability"),
+    ("Ai bán máy hút mùi Bosch không ạ?", "availability"),
+    ("Shop nào có máy rửa bát mẫu này?", "availability"),
+    ("Bếp điện từ này còn hàng không?", "availability"),
+    ("Cho mình xin giá bếp từ đôi", "price"),
+    ("Báo giá máy lọc nước giúp mình", "price"),
+    ("Lò nướng này giá bao nhiêu ạ?", "price"),
+    ("Ai có bếp từ này, báo giá giúp mình", "price"),
+    ("Xin tư vấn nên mua bếp từ hãng nào", "advice"),
+    ("Máy rửa chén hãng nào tốt cho gia đình 4 người?", "advice"),
+    ("Xin review máy rửa bát này với", "advice"),
+    ("Cần mua bếp từ ngân sách 8 triệu", "budget"),
+    ("Tư vấn máy hút mùi tầm giá 5 triệu", "budget"),
+    ("Muốn mua lò nướng dưới 4 triệu", "budget"),
+    ("Cần mua bếp từ cũ còn dùng tốt", "used"),
+    ("Tìm mua máy rửa bát đã qua sử dụng", "used"),
+    ("Ai có bếp từ thanh lý cho mình xin thông tin", "used"),
+    ("Muốn mua máy lọc nước, có ship về Hải Phòng không?", "delivery"),
+    ("Ai bán bếp từ có giao hàng ở Hà Nội?", "delivery"),
+    ("Tìm nguồn hàng bếp từ để lấy sỉ", "wholesale"),
+    ("Cần nguồn máy hút mùi, xin chính sách giá sỉ", "wholesale"),
+    ("Muốn thay bếp từ cũ, tư vấn mẫu mới giúp mình", "replacement"),
+    ("Đổi sang bếp từ có cần sửa kích thước khoét đá không?", "replacement"),
+    ("Bếp từ nhà mình báo lỗi E0", "repair"),
+    ("Bếp từ không lên nguồn, ai hỗ trợ được không?", "repair"),
+    ("Tìm thợ sửa bếp từ không nhận nồi", "repair"),
+    ("Cần lắp máy hút mùi ở nhà mới", "installation"),
+    ("Cần mua bếp từ cho căn hộ mới", "buy"),
+    ("Tìm mua máy rửa chén", "buy"),
+    ("Muốn sắm lò vi sóng cho gia đình", "buy"),
+    ("Bên em bán bếp từ, ai cần mua inbox", None),
+    ("Thanh lý bếp từ, ai muốn mua liên hệ mình", None),
+    ("Mình thanh lý máy rửa bát cũ, ai có nhu cầu ib", None),
+    ("Không cần mua bếp từ nữa, cảm ơn mọi người", None),
+    ("Đã mua được bếp từ rồi, cảm ơn các shop báo giá", None),
+    ("Cần mua bếp từ nhưng không nhận quảng cáo ở bình luận", None),
+    ("Tuyển nhân viên bán bếp từ, ai có kinh nghiệm liên hệ", None),
+    ("Ai bán điện thoại iPhone không?", None),
+    ("Cần mua bếp gas", None),
+    ("Hôm nay vệ sinh bếp từ sạch quá", None),
+    ("Bếp từ cũ của mình vẫn chạy tốt", None),
+    ("Bếp từ tiêu thụ dưới 1 kWh trong thử nghiệm", None),
+    ("Toshiba là nhãn hiệu của chiếc lò vi sóng này", None),
+    ("Cần mua nồi cho bếp từ", "accessory"),
+    ("Cần thay mặt kính bếp từ bị nứt", "accessory"),
+    ("Cần mua bếp gas, không lấy bếp từ", None),
+    ("Cần mua máy hút mùi, không lấy bếp từ", "buy"),
+    ("Có bác nào có bếp từ này không? Mình không mua nữa nhé", None),
+    ("", None),
+]
+
+
+def sample_posts():
+    return [
+        {"id": f"sample-{index}", "url": f"sample://case/{index}",
+         "author": f"Tình huống mẫu {index}", "message": text}
+        for index, (text, _expected) in enumerate(SAMPLE_CASES, 1)
+    ]

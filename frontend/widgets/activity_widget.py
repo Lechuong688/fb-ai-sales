@@ -34,13 +34,18 @@ class ActivityWidget(QFrame):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(12)
 
-        title = QLabel("Recent Activity")
+        title = QLabel("Hoạt động gần đây")
         title.setObjectName("cardTitle")
         layout.addWidget(title)
 
         self.rows_layout = QVBoxLayout()
         self.rows_layout.setSpacing(9)
         layout.addLayout(self.rows_layout)
+        self.empty_state = QLabel("Chưa có hoạt động\n\nCác lượt tìm khách và xử lý bài viết sẽ xuất hiện tại đây.")
+        self.empty_state.setObjectName("emptyState")
+        self.empty_state.setWordWrap(True)
+        self.empty_state.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.empty_state, 1)
         layout.addStretch()
 
         self._load_recent_comments()
@@ -79,6 +84,7 @@ class ActivityWidget(QFrame):
         self._add_activity(icon, text, datetime.now())
 
     def _add_activity(self, icon, text, timestamp):
+        self.empty_state.hide()
         row_widget = QWidget(self)
         row_layout = QHBoxLayout(row_widget)
         row_layout.setContentsMargins(0, 2, 0, 2)

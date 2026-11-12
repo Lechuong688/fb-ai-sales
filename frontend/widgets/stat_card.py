@@ -15,11 +15,15 @@ class StatCard(QFrame):
         variant = {
             "facebook": "facebook",
             "groups": "groups",
+            "nhóm đã đồng bộ": "groups",
             "customers": "customers",
+            "khách hàng tiềm năng": "customers",
             "ai score": "ai",
+            "bản nháp đã duyệt": "ai",
         }.get(title.lower(), "default")
         self.setProperty("variant", variant)
         self.setMinimumHeight(120) # Tăng lên 120px cho cân đối với font chữ to
+        self.setMaximumHeight(140)
 
         # ===== Hiệu ứng đổ bóng (Shadow) =====
         shadow = QGraphicsDropShadowEffect(self)

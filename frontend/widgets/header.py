@@ -3,6 +3,9 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QToolButton,
+    QSizePolicy,
+    QStyle,
 )
 from frontend.widgets.breadcrumb import Breadcrumb
 
@@ -11,7 +14,7 @@ class Header(QFrame):
         super().__init__()
 
         self.setObjectName("header")
-        self.setFixedHeight(64) # Tăng lên 64px một chút cho Header thoáng hơn
+        self.setFixedHeight(68)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(24, 0, 24, 0)
@@ -19,18 +22,32 @@ class Header(QFrame):
 
         # ===== Breadcrumb =====
         self.breadcrumb = Breadcrumb()
+        self.breadcrumb.setMinimumWidth(0)
+        self.breadcrumb.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        self.menu_button = QToolButton()
+        self.menu_button.setIcon(self.style().standardIcon(QStyle.SP_ArrowLeft))
+        self.menu_button.setToolTip("Thu gọn / mở rộng menu")
+        self.menu_button.setAccessibleName("Thu gọn hoặc mở rộng menu")
+        self.menu_button.setMinimumSize(36, 36)
 
         # ===== Status =====
-        self.status_label = QLabel("🟢 Running")
+        self.status_label = QLabel("●  Sẵn sàng")
         self.status_label.setObjectName("statusBadge")
+        self.status_label.setFixedHeight(28)
         self.status_label.setAlignment(Qt.AlignCenter)
         
         # Đặt thuộc tính động mặc định là "running"
         self.status_label.setProperty("status", "running")
 
-        layout.addWidget(self.breadcrumb)
-        layout.addStretch()
+        layout.addWidget(self.menu_button)
+        layout.addWidget(self.breadcrumb, 1)
         layout.addWidget(self.status_label)
+        self.avatar = QLabel("CS")
+        self.avatar.setObjectName("userAvatar")
+        self.avatar.setFixedSize(34, 34)
+        self.avatar.setAlignment(Qt.AlignCenter)
+        self.avatar.setToolTip("Không gian làm việc Facebook AI Sales")
+        layout.addWidget(self.avatar)
 
     def set_status(self, text: str, is_running: bool = True):
         """

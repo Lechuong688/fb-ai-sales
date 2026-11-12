@@ -1,10 +1,11 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget,
-    QHBoxLayout,
     QPushButton,
     QLineEdit,
 )
+from frontend.layouts.flow_layout import FlowLayout
+from frontend.widgets.icons import navigation_icon
 
 class Toolbar(QWidget):
     searchChanged = Signal(str)
@@ -14,10 +15,10 @@ class Toolbar(QWidget):
 
         self.setObjectName("toolbar")
 
-        self.layout = QHBoxLayout(self)
+        self.layout = FlowLayout(self)
         # Giữ margin đáy là 12px để tạo khoảng cách với Table/Content phía dưới
         self.layout.setContentsMargins(0, 0, 0, 12)
-        self.layout.setSpacing(12) # Tăng spacing lên 12 cho thoáng
+        self.layout.setSpacing(8)
 
         self.buttons = []
 
@@ -27,15 +28,14 @@ class Toolbar(QWidget):
             for text, callback in buttons:
                 self.add_button(text, callback)
 
-        self.layout.addStretch()
-
         # ================= Search =================
         
         if has_search:
             self.search = QLineEdit()
             self.search.setObjectName("toolbarSearch")
             self.search.setPlaceholderText("🔍 Tìm kiếm...")
-            self.search.setFixedWidth(260)
+            self.search.setMinimumWidth(180)
+            self.search.setMaximumWidth(260)
             
             # Ép chiều cao 36px cho vừa khớp với form dáng viên thuốc trong CSS
             self.search.setFixedHeight(36)
@@ -52,10 +52,16 @@ class Toolbar(QWidget):
         button.setObjectName("toolbarButton")
         button.setProperty(
             "variant",
-            "danger" if "stop" in text.lower() else
-            "secondary" if "refresh" in text.lower() else
-            "primary",
+            "danger" if "tạm dừng" not in text.lower() and any(word in text.lower() for word in ("stop", "dừng", "xóa")) else
+            "primary" if not self.buttons else "secondary",
         )
+        for prefix, name in (("🔍", "search"), ("📝", "edit"), ("↻", "refresh"),
+                             ("🔄", "refresh"), ("＋", "plus"), ("➕", "plus"),
+                             ("✨", "sparkles"), ("⚙", "settings"), ("🧪", "sparkles")):
+            if text.startswith(prefix):
+                button.setText(text[len(prefix):].lstrip("\ufe0f "))
+                button.setIcon(navigation_icon(name, "#ffffff" if button.property("variant") == "primary" else "#718198"))
+                break
         
         # Dùng setFixedHeight thay vì Minimum để nút luôn đều đẹp với khung tìm kiếm
         button.setFixedHeight(36)
@@ -66,13 +72,11 @@ class Toolbar(QWidget):
         if callback:
             button.clicked.connect(callback)
 
-        # Chèn nút bấm vào trước thanh Stretch để nó luôn nằm bên trái
-        # (Vì thanh Stretch nằm ở cuối list buttons)
-        index_to_insert = self.layout.count() - 2 if self.search else self.layout.count() - 1
-        
-        # Sửa lại cơ chế add widget để tương thích nếu gọi add_button sau khi khởi tạo
-        if self.layout.count() > 1:
-            self.layout.insertWidget(len(self.buttons), button)
+        # Keep newly added actions before the search field.
+        if self.search:
+            search_item = self.layout.takeAt(self.layout.count() - 1)
+            self.layout.addWidget(button)
+            self.layout.addItem(search_item)
         else:
             self.layout.addWidget(button)
 
@@ -94,6 +98,7 @@ class Toolbar(QWidget):
     def set_search_visible(self, visible: bool):
         if self.search:
             self.search.setVisible(visible)
+            self.layout.invalidate()
 
     def first_button(self):
 

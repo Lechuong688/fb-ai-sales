@@ -1,10 +1,14 @@
 from pathlib import Path
+import threading
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
+    QComboBox,
+    QInputDialog,
+    QSpinBox,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -25,11 +29,14 @@ from PySide6.QtWidgets import (
 from backend.services.account_service import AccountService
 from backend.services.group_service import GroupService
 from backend.services.post_draft_service import PostDraftService
+from backend.services.publishing_service import PublishingService
 from backend.browser.pool import browser_pool
 from backend.services.profile_label_service import ProfileLabelService
 from backend.signals import signals
 from frontend.pages.base_page import BasePage
 from frontend.widgets.base_table import BaseTable
+from frontend.layouts.flow_layout import FlowLayout
+from backend.utils.task_control import TaskControl
 
 
 class PostPage(BasePage):
@@ -43,22 +50,38 @@ class PostPage(BasePage):
         )
         self.toolbar.set_search_visible(False)
         self.draft_service = PostDraftService()
+        self.publishing_service = PublishingService()
         self.group_service = GroupService()
         self.profile_labels = ProfileLabelService()
         self.current_draft_id = None
         self._loading_targets = False
         self._group_selection = {}
         self._group_refresh_pending = set()
+        self._group_refresh_paused = False
+        self._group_refresh_stopping = False
         self._active_group_picker = None
         self._publish_pending = set()
         self._publish_results = []
+        self._publish_queue = []
+        self._publish_stop = threading.Event()
+        self._publish_control = TaskControl()
+        self._publish_request = {}
+        self.pause_groups_button = self.toolbar.add_button("Tạm dừng quét nhóm", self.toggle_group_refresh_pause)
+        self.stop_groups_button = self.toolbar.add_button("Dừng quét nhóm", self.stop_group_refresh)
+        self.pause_groups_button.hide()
+        self.stop_groups_button.hide()
+        self.pause_publish_toolbar = self.toolbar.add_button("Tạm dừng đăng", self.toggle_publish_pause)
+        self.stop_publish_toolbar = self.toolbar.add_button("Dừng đăng", self.stop_publishing)
+        self.pause_publish_toolbar.hide()
+        self.stop_publish_toolbar.hide()
 
-        editor = QSplitter(Qt.Horizontal)
+        editor = self.editor_splitter = QSplitter(Qt.Horizontal)
         editor.setChildrenCollapsible(False)
 
-        compose_panel = QWidget()
+        compose_panel = self.compose_panel = QWidget()
+        compose_panel.setObjectName("surfacePanel")
         compose_layout = QVBoxLayout(compose_panel)
-        compose_layout.setContentsMargins(4, 4, 10, 4)
+        compose_layout.setContentsMargins(18, 18, 18, 18)
         content_header = QHBoxLayout()
         content_header.addWidget(QLabel("Nội dung bài viết"))
         content_header.addStretch()
@@ -71,7 +94,16 @@ class PostPage(BasePage):
             "Viết nội dung bài đăng… Bạn có thể xuống dòng và dùng emoji."
         )
         self.content_input.setMaximumHeight(155)
-        compose_layout.addWidget(self.content_input, 2)
+        compose_layout.addWidget(self.content_input, 5)
+
+        library_actions = QHBoxLayout()
+        for label, callback in (("Mở kho nội dung", self.open_content_library),
+                                ("Lưu thành mẫu", self.save_content_template)):
+            button = QPushButton(label)
+            button.clicked.connect(callback)
+            library_actions.addWidget(button)
+        library_actions.addStretch()
+        compose_layout.addLayout(library_actions)
 
         media_header = QHBoxLayout()
         media_header.addWidget(QLabel("Ảnh và video"))
@@ -108,7 +140,7 @@ class PostPage(BasePage):
         self.profile_list = QListWidget()
         self.profile_list.setObjectName("postMediaList")
         self.profile_list.setMinimumWidth(190)
-        self.profile_list.setMinimumHeight(210)
+        self.profile_list.setMinimumHeight(150)
         accounts_layout.addWidget(self.profile_list)
 
         groups_panel = QWidget()
@@ -133,9 +165,9 @@ class PostPage(BasePage):
 
         target_splitter.addWidget(accounts_panel)
         target_splitter.addWidget(groups_panel)
-        target_splitter.setStretchFactor(0, 2)
+        target_splitter.setStretchFactor(0, 5)
         target_splitter.setStretchFactor(1, 3)
-        compose_layout.addWidget(target_splitter, 2)
+        compose_layout.addWidget(target_splitter, 5)
 
         self.target_summary = QLabel("Chưa chọn đích")
         self.target_summary.setObjectName("pageDescription")
@@ -150,9 +182,33 @@ class PostPage(BasePage):
         target_note.setObjectName("pageDescription")
         compose_layout.addWidget(target_note)
 
-        compose_actions = QHBoxLayout()
-        compose_actions.addStretch()
-        self.publish_button = QPushButton("Đăng ngay · tối đa 5 nick / 10 nhóm")
+        publish_options = FlowLayout(spacing=8)
+        self.publish_mode = QComboBox()
+        self.publish_mode.addItem("Lần lượt từng nick", "sequential")
+        self.publish_mode.addItem("Song song giữa các nick", "parallel")
+        self.publish_mode.setToolTip("Trong mỗi nick, các đích luôn được xử lý lần lượt.")
+        publish_options.addWidget(self.publish_mode)
+        publish_options.addWidget(QLabel("Nghỉ giữa các đích"))
+        self.publish_delay = QSpinBox()
+        self.publish_delay.setRange(0, 3600)
+        self.publish_delay.setValue(30)
+        self.publish_delay.setSuffix(" giây")
+        publish_options.addWidget(self.publish_delay)
+        compose_layout.addLayout(publish_options)
+
+        compose_actions = FlowLayout(spacing=8)
+        self.pause_publish_button = QPushButton("Tạm dừng đăng")
+        self.pause_publish_button.setEnabled(False)
+        self.pause_publish_button.setToolTip("Tạm dừng sau thao tác Facebook hiện tại; tiếp tục giữ nguyên hàng đợi.")
+        self.pause_publish_button.clicked.connect(self.toggle_publish_pause)
+        compose_actions.addWidget(self.pause_publish_button)
+        self.stop_publish_button = QPushButton("Dừng đăng")
+        self.stop_publish_button.setObjectName("toolbarButton")
+        self.stop_publish_button.setProperty("variant", "danger")
+        self.stop_publish_button.setEnabled(False)
+        self.stop_publish_button.clicked.connect(self.stop_publishing)
+        compose_actions.addWidget(self.stop_publish_button)
+        self.publish_button = QPushButton("Đăng ngay · tối đa 5 nhóm")
         self.publish_button.setObjectName("toolbarButton")
         self.publish_button.setProperty("variant", "primary")
         self.publish_button.setFixedHeight(36)
@@ -165,14 +221,16 @@ class PostPage(BasePage):
         compose_layout.addLayout(compose_actions)
 
         preview_panel = QWidget()
+        preview_panel.setMinimumHeight(320)
+        preview_panel.setObjectName("surfacePanel")
         preview_layout = QVBoxLayout(preview_panel)
-        preview_layout.setContentsMargins(10, 4, 4, 4)
+        preview_layout.setContentsMargins(18, 18, 18, 18)
         preview_layout.addWidget(QLabel("Xem trước bài viết"))
         self.preview_text = QTextBrowser()
         self.preview_text.setObjectName("postPreviewText")
         self.preview_text.setPlaceholderText("Nội dung xem trước sẽ hiện ở đây.")
         self.preview_text.setOpenExternalLinks(False)
-        preview_layout.addWidget(self.preview_text, 2)
+        preview_layout.addWidget(self.preview_text, 5)
         self.preview_media = QLabel("Chưa có ảnh/video")
         self.preview_media.setAlignment(Qt.AlignCenter)
         self.preview_media.setMinimumHeight(130)
@@ -184,15 +242,20 @@ class PostPage(BasePage):
         preview_layout.addWidget(self.preview_targets)
 
         editor.addWidget(compose_panel)
+        editor.setHandleWidth(16)
         editor.addWidget(preview_panel)
         editor.setStretchFactor(0, 3)
         editor.setStretchFactor(1, 2)
         editor.setSizes([700, 500])
-        editor.setMinimumHeight(500)
+        # QSplitter does not propagate the nested panel's layout minimum reliably.
+        # Reserve the full form height so the target list cannot paint over its summary.
+        compose_panel.setMinimumHeight(compose_layout.minimumSize().height() + 60)
+        editor.setMinimumHeight(max(650, compose_panel.minimumHeight()))
 
         drafts_panel = QWidget()
+        drafts_panel.setObjectName("surfacePanel")
         drafts_layout = QVBoxLayout(drafts_panel)
-        drafts_layout.setContentsMargins(4, 8, 4, 0)
+        drafts_layout.setContentsMargins(18, 14, 18, 18)
         drafts_header = QHBoxLayout()
         drafts_header.addWidget(QLabel("Bản nháp đã lưu"))
         drafts_header.addStretch()
@@ -249,10 +312,92 @@ class PostPage(BasePage):
         signals.groups_synced.connect(self._on_groups_synced)
         signals.groups_sync_partial.connect(self._on_groups_sync_partial)
         signals.groups_sync_failed.connect(self._on_groups_sync_failed)
+        signals.groups_sync_cancelled.connect(self._on_groups_sync_cancelled)
         signals.post_publish_finished.connect(self._on_publish_finished)
         self._load_targets()
         self.refresh_drafts()
         self._render_preview()
+
+    def set_available_width(self, width):
+        narrow = width < 760
+        orientation = Qt.Vertical if narrow else Qt.Horizontal
+        if self.editor_splitter.orientation() == orientation:
+            return
+        self.editor_splitter.setOrientation(orientation)
+        minimum = self.compose_panel.minimumHeight()
+        self.editor_splitter.setMinimumHeight(minimum + 336 if narrow else minimum)
+        self.editor_splitter.setSizes([minimum, 320] if narrow else [700, 500])
+        self.updateGeometry()
+
+    def save_content_template(self):
+        name, accepted = QInputDialog.getText(self, "Lưu mẫu bài viết", "Tên mẫu:")
+        if not accepted:
+            return
+        try:
+            self.publishing_service.save_template(name, self.content_input.toPlainText(), self._media_paths())
+        except (ValueError, OSError) as exc:
+            QMessageBox.warning(self, "Không lưu được mẫu", str(exc))
+            return
+        signals.status.emit(f"Đã lưu mẫu: {name.strip()}")
+
+    def open_content_library(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Kho nội dung")
+        dialog.resize(650, 480)
+        layout = QVBoxLayout(dialog)
+        search = QLineEdit()
+        search.setPlaceholderText("Tìm tên mẫu hoặc nội dung…")
+        layout.addWidget(search)
+        listing = QListWidget()
+        layout.addWidget(listing)
+        preview = QTextBrowser()
+        layout.addWidget(preview)
+        for template in self.publishing_service.list_templates():
+            item = QListWidgetItem(f"{template['name']} · {len(template['media'])} tệp")
+            item.setData(Qt.UserRole, template)
+            listing.addItem(item)
+        if not listing.count():
+            preview.setPlainText("Kho đang trống. Dùng ‘Lưu thành mẫu’ để lưu nội dung và ảnh/video.")
+        def selected():
+            return listing.currentItem().data(Qt.UserRole) if listing.currentItem() else None
+        def show_preview():
+            value = selected()
+            preview.setPlainText(value['content'] if value else "")
+        def filter_templates(text):
+            from backend.utils.text_matching import normalize_text
+            for row in range(listing.count()):
+                item = listing.item(row)
+                value = item.data(Qt.UserRole)
+                item.setHidden(normalize_text(text) not in normalize_text(value['name'] + ' ' + value['content']))
+            listing.setCurrentRow(next((i for i in range(listing.count()) if not listing.item(i).isHidden()), -1))
+        search.textChanged.connect(filter_templates)
+        listing.currentRowChanged.connect(show_preview)
+        buttons = QDialogButtonBox(QDialogButtonBox.Open | QDialogButtonBox.Cancel)
+        buttons.button(QDialogButtonBox.Open).setText("Dùng mẫu này")
+        buttons.button(QDialogButtonBox.Open).setEnabled(bool(listing.count()))
+        delete = buttons.addButton("Xóa mẫu", QDialogButtonBox.ActionRole)
+        def delete_template():
+            value = selected()
+            if value and QMessageBox.question(dialog, "Xóa mẫu", f"Xóa mẫu {value['name']}?") == QMessageBox.Yes:
+                self.publishing_service.delete("templates", value['id'])
+                listing.takeItem(listing.currentRow())
+                show_preview()
+        delete.clicked.connect(delete_template)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        listing.setCurrentRow(0)
+        if dialog.exec() == QDialog.Accepted and selected():
+            value = selected()
+            self.current_draft_id = None
+            self.content_input.setPlainText(value['content'])
+            self.media_list.clear()
+            for path in value['media']:
+                item = QListWidgetItem(Path(path).name)
+                item.setData(Qt.UserRole, path)
+                item.setToolTip(path)
+                self.media_list.addItem(item)
+            self._render_preview()
 
     def _load_targets(self, saved_profiles=None, saved_groups=None):
         selected_profiles = set(saved_profiles or [])
@@ -421,6 +566,51 @@ class PostPage(BasePage):
         add_group_rows(groups, existing_selection)
         layout.addWidget(group_list, 1)
 
+        collection_actions = QHBoxLayout()
+        collection_combo = QComboBox()
+        collection_combo.setMinimumWidth(180)
+        def reload_collections():
+            collection_combo.clear()
+            collection_combo.addItem("Bộ sưu tập của nick này…", None)
+            for entry in self.publishing_service.list_collections(profile):
+                collection_combo.addItem(entry['name'], entry)
+        def apply_collection():
+            entry = collection_combo.currentData()
+            if not entry:
+                return
+            available = {group_list.item(i).data(Qt.UserRole) for i in range(group_list.count())}
+            for i in range(group_list.count()):
+                item = group_list.item(i)
+                item.setCheckState(Qt.Checked if item.data(Qt.UserRole) in entry['urls'] else Qt.Unchecked)
+            missing = len(set(entry['urls']) - available)
+            if missing:
+                QMessageBox.information(dialog, "Nhóm chưa đồng bộ", f"{missing} nhóm trong bộ sưu tập không còn trong danh sách của nick. Chỉ chọn các nhóm hiện có.")
+        def save_collection():
+            urls = [group_list.item(i).data(Qt.UserRole) for i in range(group_list.count())
+                    if group_list.item(i).checkState() == Qt.Checked]
+            if not urls:
+                QMessageBox.information(dialog, "Chọn nhóm", "Chọn ít nhất một nhóm trước khi lưu bộ sưu tập.")
+                return
+            name, accepted = QInputDialog.getText(dialog, "Lưu bộ sưu tập", "Tên bộ sưu tập:")
+            if accepted and name.strip():
+                existing = next((x for x in self.publishing_service.list_collections(profile) if x['name'] == name.strip()), None)
+                if existing and QMessageBox.question(dialog, "Cập nhật bộ sưu tập", f"Thay danh sách nhóm của {name.strip()}?") != QMessageBox.Yes:
+                    return
+                self.publishing_service.save_collection(name, profile, urls)
+                reload_collections()
+        def delete_collection():
+            entry = collection_combo.currentData()
+            if entry and QMessageBox.question(dialog, "Xóa bộ sưu tập", f"Xóa {entry['name']}?") == QMessageBox.Yes:
+                self.publishing_service.delete("collections", entry['id'])
+                reload_collections()
+        reload_collections()
+        collection_actions.addWidget(collection_combo, 1)
+        for label, callback in (("Áp dụng", apply_collection), ("Lưu bộ sưu tập", save_collection), ("Xóa", delete_collection)):
+            button = QPushButton(label)
+            button.clicked.connect(callback)
+            collection_actions.addWidget(button)
+        layout.addLayout(collection_actions)
+
         def update_count(*_args):
             count = sum(
                 group_list.item(row).checkState() == Qt.Checked
@@ -448,6 +638,15 @@ class PostPage(BasePage):
 
         refresh_groups = QPushButton("↻ Quét lại nhóm của nick này")
         actions.insertWidget(0, refresh_groups)
+        task_actions = QHBoxLayout()
+        pause_groups = QPushButton("Tạm dừng quét nhóm")
+        stop_groups = QPushButton("Dừng quét nhóm")
+        task_actions.addWidget(pause_groups)
+        task_actions.addWidget(stop_groups)
+        task_actions.addStretch()
+        layout.addLayout(task_actions)
+        pause_groups.clicked.connect(self.toggle_group_refresh_pause)
+        stop_groups.clicked.connect(self.stop_group_refresh)
 
         def reload_group_rows():
             selected_urls = {
@@ -465,7 +664,10 @@ class PostPage(BasePage):
             "profile": profile,
             "reload": reload_group_rows,
             "button": refresh_groups,
+            "pause": pause_groups,
+            "stop": stop_groups,
         }
+        self._update_refresh_button()
         refresh_groups.clicked.connect(lambda: self._request_group_refresh(profile))
 
         if dialog.exec() != QDialog.Accepted:
@@ -651,10 +853,17 @@ class PostPage(BasePage):
         )
 
     def publish_selected(self):
+        if self._publish_pending or self._publish_queue:
+            return
         content = self.content_input.toPlainText().strip()
         media_paths = self._media_paths()
         if not content and not media_paths:
             QMessageBox.warning(self, "Thiếu nội dung", "Nhập nội dung hoặc thêm ảnh/video trước khi đăng.")
+            return
+
+        missing_media = [path for path in media_paths if not Path(path).is_file()]
+        if missing_media:
+            QMessageBox.warning(self, "Thiếu tệp media", "Chọn lại các tệp không còn tồn tại:\n" + "\n".join(missing_media))
             return
 
         profiles, groups = self._selected_targets()
@@ -675,19 +884,12 @@ class PostPage(BasePage):
             for target in targets
             if target["kind"] == "group"
         )
-        over_limit = {
-            profile: sum(target.get("kind") == "group" for target in targets)
-            for profile, targets in targets_by_profile.items()
-        }
-        over_limit = {
-            profile: count for profile, count in over_limit.items() if count > 10
-        }
-        if over_limit:
-            details = "\n".join(
-                f"{profile}: {count} nhóm đã chọn (tối đa 10)"
-                for profile, count in over_limit.items()
+        if group_count > 5:
+            QMessageBox.warning(
+                self,
+                "Chọn tối đa 5 nhóm",
+                f"Hiện đang chọn {group_count} lượt đăng nhóm. Mỗi lần chỉ đăng tối đa 5 nhóm.",
             )
-            QMessageBox.warning(self, "Quá giới hạn nhóm mỗi nick", details)
             return
         if len(targets_by_profile) > 5:
             QMessageBox.warning(
@@ -731,8 +933,9 @@ class PostPage(BasePage):
         answer = QMessageBox.question(
             self,
             "Xác nhận đăng bài",
-            f"Sẽ gửi bài tới {feed_count} bảng tin và {group_count} nhóm Facebook "
-            "(tối đa 10 nhóm mỗi nick, 5 nick).\n"
+            f"Sẽ gửi bài tới {feed_count} bảng tin và {group_count} nhóm Facebook.\n"
+            f"Chế độ: {self.publish_mode.currentText()}. Nghỉ {self.publish_delay.value()} giây giữa các đích của mỗi nick.\n"
+            "Gặp lỗi sẽ dừng các đích còn lại của nick đó.\n"
             "Mỗi nhóm có thể cần quản trị viên duyệt bài. Tiếp tục?",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
@@ -741,29 +944,110 @@ class PostPage(BasePage):
             return
 
         self._publish_results = []
-        self._publish_pending = set(targets_by_profile)
+        self._publish_stop = threading.Event()
+        self._publish_control = TaskControl()
+        self._publish_request = {
+            "content": content, "media_paths": list(media_paths),
+            "delay_seconds": self.publish_delay.value(), "stop_event": self._publish_stop,
+            "task_control": self._publish_control,
+        }
+        # Persist the reviewed content before sending so it can be reopened later.
+        draft = self.draft_service.save(self.current_draft_id, content, media_paths, profiles, groups)
+        self.current_draft_id = draft.id
+        self.refresh_drafts()
+        self._publish_queue = list(targets_by_profile.items())
+        self._publish_pending = set()
         self.publish_button.setEnabled(False)
+        self.stop_publish_button.setEnabled(True)
+        self.pause_publish_button.setEnabled(True)
+        self.pause_publish_button.setText("Tạm dừng đăng")
+        self.publish_mode.setEnabled(False)
+        self.publish_delay.setEnabled(False)
         self.publish_button.setText("Đang đăng…")
-        for profile, targets in targets_by_profile.items():
-            workers[profile].publish_requested.emit({
-                "content": content,
-                "media_paths": media_paths,
-                "targets": targets,
-            })
+        self._sync_publish_controls()
+        if self.publish_mode.currentData() == "parallel":
+            queued, self._publish_queue = self._publish_queue, []
+            self._publish_pending = {profile for profile, _targets in queued}
+            for profile, targets in queued:
+                workers[profile].publish_requested.emit(dict(self._publish_request, targets=targets))
+        else:
+            self._dispatch_next_profile()
+
+    def _dispatch_next_profile(self):
+        profile, targets = self._publish_queue.pop(0)
+        self._publish_pending.add(profile)
+        worker = browser_pool.get_worker(profile)
+        if not worker or worker.operation_active or not self._profile_is_logged_in(profile):
+            outcomes = [dict(success=False, status="skipped", target=t['url'], kind=t['kind'],
+                             message="Nick không sẵn sàng khi đến lượt đăng.") for t in targets]
+            self.publishing_service.record(profile, outcomes, self._publish_request['content'])
+            self._on_publish_finished(profile, outcomes)
+            return
+        worker.publish_requested.emit(dict(self._publish_request, targets=targets))
+
+    def toggle_publish_pause(self):
+        if not self._publish_pending or self._publish_control.stopped:
+            return
+        if self._publish_control.paused:
+            self._publish_control.resume()
+            self.pause_publish_button.setText("Tạm dừng đăng")
+            self.publish_button.setText("Đang đăng…")
+            signals.status.emit("Đã tiếp tục đăng bài từ hàng đợi hiện tại.")
+        else:
+            self._publish_control.pause()
+            self.pause_publish_button.setText("Tiếp tục đăng")
+            self.publish_button.setText("Đang tạm dừng…")
+            signals.status.emit("Đã yêu cầu tạm dừng đăng bài sau thao tác hiện tại. Bấm Tiếp tục đăng để chạy tiếp.")
+        self._sync_publish_controls()
+
+    def _sync_publish_controls(self):
+        active = bool(self._publish_pending or self._publish_queue)
+        self.pause_publish_toolbar.setVisible(active)
+        self.stop_publish_toolbar.setVisible(active)
+        self.pause_publish_toolbar.setText(self.pause_publish_button.text())
+        self.pause_publish_toolbar.setEnabled(active and not self._publish_control.stopped)
+        self.stop_publish_toolbar.setEnabled(active and not self._publish_control.stopped)
+
+    def stop_publishing(self):
+        self._publish_control.stop()
+        self._publish_stop.set()
+        for profile, targets in self._publish_queue:
+            outcomes = [dict(success=False, status="skipped", target=t['url'], kind=t['kind'],
+                             message="Đã dừng trước khi đến lượt nick.") for t in targets]
+            self.publishing_service.record(profile, outcomes, self._publish_request['content'])
+            self._publish_results.extend((profile, outcome) for outcome in outcomes)
+        self._publish_queue = []
+        self.stop_publish_button.setEnabled(False)
+        self.pause_publish_button.setEnabled(False)
+        self.publish_button.setText("Đang dừng…")
+        self._sync_publish_controls()
+        signals.status.emit("Đang dừng đăng bài. Bài đã gửi sẽ được giữ nguyên trên Facebook.")
 
     def _on_publish_finished(self, profile, outcomes):
+        if profile not in self._publish_pending:
+            return
         self._publish_results.extend(
             (profile, outcome) for outcome in (outcomes or [])
         )
         self._publish_pending.discard(profile)
+        if self._publish_queue:
+            self._dispatch_next_profile()
+            return
         if self._publish_pending:
             self.publish_button.setText(
+                "Đang tạm dừng…" if self._publish_control.paused else
                 f"Đang đăng… ({len(self._publish_pending)} nick còn lại)"
             )
             return
 
         self.publish_button.setEnabled(True)
-        self.publish_button.setText("Đăng ngay · tối đa 5 nick / 10 nhóm")
+        self.stop_publish_button.setEnabled(False)
+        self.pause_publish_button.setEnabled(False)
+        self.pause_publish_button.setText("Tạm dừng đăng")
+        self.publish_mode.setEnabled(True)
+        self.publish_delay.setEnabled(True)
+        self.publish_button.setText("Đăng ngay · tối đa 5 nhóm")
+        self._sync_publish_controls()
         successful = sum(
             bool(outcome.get("success"))
             for _profile, outcome in self._publish_results
@@ -773,13 +1057,15 @@ class PostPage(BasePage):
             target = outcome.get("target") or ""
             kind = outcome.get("kind", "")
             destination = "Bảng tin" if kind == "feed" else target
-            status = "Đã gửi" if outcome.get("success") else "Lỗi"
+            status = "Đã gửi" if outcome.get("success") else "Đã dừng / bỏ qua" if outcome.get("status") == "skipped" else "Lỗi"
             details.append(
                 f"{status} · {profile_name} · {destination}\n{outcome.get('message', '')}"
             )
         text = f"Đã gửi {successful}/{len(self._publish_results)} đích.\n\n"
         text += "\n\n".join(details)
-        if successful:
+        if self._publish_control.stopped:
+            QMessageBox.information(self, "Đã dừng đăng bài", text)
+        elif successful:
             QMessageBox.information(self, "Kết quả đăng bài", text)
         else:
             QMessageBox.warning(self, "Không đăng được bài", text)
@@ -877,6 +1163,8 @@ class PostPage(BasePage):
             signals.status.emit("Không có profile Facebook đang đăng nhập để quét nhóm.")
 
     def _request_group_refresh(self, profile):
+        if self._group_refresh_stopping:
+            return False
         if profile in self._group_refresh_pending:
             signals.status.emit(f"Đang quét nhóm của {profile}...")
             return False
@@ -890,6 +1178,8 @@ class PostPage(BasePage):
             )
             return False
         self._group_refresh_pending.add(profile)
+        if self._group_refresh_paused and isinstance(getattr(worker, "group_control", None), TaskControl):
+            worker.group_control.pause()
         picker = self._active_group_picker
         if picker and picker["profile"] == profile:
             picker["button"].setEnabled(False)
@@ -908,6 +1198,48 @@ class PostPage(BasePage):
         else:
             button.setText("↻ Làm mới")
             button.setEnabled(True)
+            self._group_refresh_paused = False
+            self._group_refresh_stopping = False
+        pause_buttons = [self.pause_groups_button]
+        stop_buttons = [self.stop_groups_button]
+        picker = self._active_group_picker
+        if picker and "pause" in picker:
+            pause_buttons.append(picker['pause'])
+            stop_buttons.append(picker['stop'])
+        for control in pause_buttons:
+            control.setText("Tiếp tục quét nhóm" if self._group_refresh_paused else "Tạm dừng quét nhóm")
+            control.setEnabled(bool(self._group_refresh_pending) and not self._group_refresh_stopping)
+        for control in stop_buttons:
+            control.setEnabled(bool(self._group_refresh_pending) and not self._group_refresh_stopping)
+        self.pause_groups_button.setVisible(bool(self._group_refresh_pending))
+        self.stop_groups_button.setVisible(bool(self._group_refresh_pending))
+
+    def toggle_group_refresh_pause(self):
+        if not self._group_refresh_pending or self._group_refresh_stopping:
+            return
+        self._group_refresh_paused = not self._group_refresh_paused
+        for profile in self._group_refresh_pending:
+            worker = browser_pool.get_worker(profile)
+            if worker and isinstance(getattr(worker, "group_control", None), TaskControl):
+                (worker.group_control.pause if self._group_refresh_paused else worker.group_control.resume)()
+        self._update_refresh_button()
+        signals.status.emit("Đã yêu cầu tạm dừng quét nhóm." if self._group_refresh_paused else "Đã tiếp tục quét nhóm.")
+
+    def stop_group_refresh(self):
+        self._group_refresh_stopping = True
+        for profile in self._group_refresh_pending:
+            worker = browser_pool.get_worker(profile)
+            if worker and isinstance(getattr(worker, "group_control", None), TaskControl):
+                worker.group_control.stop()
+        self._update_refresh_button()
+        signals.status.emit("Đang dừng quét nhóm; giữ dữ liệu đã lưu và profile đang mở.")
+
+    def _on_groups_sync_cancelled(self, profile):
+        if profile not in self._group_refresh_pending:
+            return
+        self._on_groups_sync_failed(profile, "Đã dừng theo yêu cầu.")
+        self._refresh_targets_preserving_selection()
+        signals.status.emit(f"Đã dừng quét nhóm của {profile}; đã giữ kết quả thu thập được.")
 
     def _on_groups_synced(self, profile, count):
         self._group_refresh_pending.discard(profile)

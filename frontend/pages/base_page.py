@@ -1,4 +1,5 @@
 import requests
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -59,17 +60,19 @@ class BasePage(QWidget):
         buttons=None
     ):
         super().__init__()
+        self.setObjectName("workspacePage")
+        self.setAttribute(Qt.WA_StyledBackground, True)
 
         self.layout = QVBoxLayout(self)
 
         self.layout.setContentsMargins(
-            25,
-            25,
-            25,
-            25
+            24,
+            22,
+            24,
+            24
         )
 
-        self.layout.setSpacing(20)
+        self.layout.setSpacing(12)
 
         self.header = PageHeader(
             title,

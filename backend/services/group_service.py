@@ -2,6 +2,7 @@ import re
 from urllib.parse import unquote, urlparse
 
 from backend.database.models.group import Group
+from backend.facebook.parsers.group_parser import normalize_group_url
 from backend.database.repositories.group_repository import GroupRepository
 from backend.database.repositories.profile_group_repository import (
     ProfileGroupRepository,
@@ -16,8 +17,24 @@ class GroupService:
         self.profile_groups = ProfileGroupRepository()
 
     def get_all(self):
+        return self._display_groups(self.repo.get_all())
 
-        return self.repo.get_all()
+    def _display_groups(self, groups):
+        valid = []
+        seen = set()
+        for group in groups:
+            try:
+                url = normalize_group_url(group.url)
+            except ValueError:
+                continue
+            if url in seen:
+                continue
+            seen.add(url)
+            # Repository results are detached; display cleanup never changes saved data.
+            group.url = url
+            group.name = self.clean_group_name(group.name, url)
+            valid.append(group)
+        return valid
 
     @staticmethod
     def clean_group_name(name, url=""):
@@ -57,7 +74,6 @@ class GroupService:
             re.IGNORECASE,
         )
         for line in lines:
-            line = re.sub(r"\s*\(\d+\)\s*$", "", line)
             if not line or line.casefold() in ignored or time_only.fullmatch(line):
                 continue
             # Strip a trailing numeric group id that older scraping stored as part of the name.
@@ -74,10 +90,7 @@ class GroupService:
     def create(self, name, url):
 
         name = self.clean_group_name(name, url)
-        url = (url or "").strip()
-
-        if not url:
-            return None
+        url = normalize_group_url(url)
 
         # Không thêm trùng
         existing = self.repo.get_by_url(url)
@@ -110,19 +123,25 @@ class GroupService:
 
     def get_for_profile(self, profile):
         linked_groups = self.profile_groups.get_groups_for_profile(profile)
-        groups = []
-        invalid_ids = []
-        for group in linked_groups:
-            clean_name = self.clean_group_name(group.name, group.url)
-            if clean_name.startswith("Facebook Group"):
-                invalid_ids.append(group.id)
-                continue
-            if group.name != clean_name:
-                group.name = clean_name
-                self.repo.update(group)
-            groups.append(group)
-        self.profile_groups.unlink_many(profile, invalid_ids)
-        return groups
+        return self._display_groups(linked_groups)
+
+    def sync_discovered_groups(self, profile, groups, scan_complete=False, expected=None):
+        profile = (profile or "").strip()
+        if not profile:
+            raise ValueError("Profile không được để trống.")
+        normalized = {}
+        for group in groups:
+            url = normalize_group_url(group["url"])
+            name = self.clean_group_name(group.get("name"), url)
+            normalized[url] = {"url": url, "name": name}
+        # Reaching the bottom alone cannot prove that Facebook loaded every group.
+        complete = bool(
+            scan_complete
+            and expected is not None
+            and len(normalized) == expected
+        )
+        added = self.repo.sync_discovered_groups(profile, normalized.values(), complete)
+        return {"added": added, "count": len(normalized), "complete": complete}
 
     def sync_profile_groups(self, profile, group_ids):
         return self.profile_groups.sync_profile_groups(profile, group_ids)

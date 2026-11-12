@@ -1,6 +1,6 @@
 from functools import partial
 
-from PySide6.QtCore import QThread, QTimer, Qt
+from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QAbstractItemView, QMessageBox, QPushButton
 from PySide6.QtWidgets import QTableWidgetItem
@@ -11,26 +11,29 @@ from backend.browser.pool import browser_pool
 from backend.browser.window_layout import tile_windows
 from backend.signals import signals
 from backend.workers.browser_worker import BrowserWorker
+from backend.workers.browser_thread import BrowserThread
 
 from frontend.pages.base_page import BasePage
 from frontend.widgets.base_table import BaseTable
 
 
 class AccountsPage(BasePage):
+    shutdown_finished = Signal()
 
     def __init__(self):
 
         super().__init__(
-            title="Accounts",
+            title="Tài khoản Facebook",
             description="Quản lý tài khoản Facebook",
             buttons=[
-                ("➕ Add Facebook", self.add_facebook),
-                ("▶ Open All", self.open_all_accounts),
-                ("■ Stop All", self.stop_all_accounts),
-                ("🔄 Refresh", self.load_accounts),
+                ("＋ Thêm tài khoản", self.add_facebook),
+                ("Mở tất cả", self.open_all_accounts),
+                ("Dừng tất cả", self.stop_all_accounts),
+                ("↻ Làm mới", self.load_accounts),
             ]
         )
         self._sessions = {}
+        self._shutting_down = False
         self._batch_window_bounds = None
         self.profile_label_service = ProfileLabelService()
         self.table = BaseTable()
@@ -167,6 +170,8 @@ class AccountsPage(BasePage):
             QMessageBox.warning(self, "Profile label", str(exc))
 
     def login_account(self, account):
+        if self._shutting_down:
+            return
 
         profile = account.profile.strip()
 
@@ -212,7 +217,7 @@ class AccountsPage(BasePage):
             QTimer.singleShot(0, self.load_accounts)
             return
 
-        thread = QThread(self)
+        thread = BrowserThread(self)
         worker = BrowserWorker()
         worker.moveToThread(thread)
         browser_pool.register_worker(profile, worker)
@@ -368,54 +373,35 @@ class AccountsPage(BasePage):
         entry = self._sessions.pop(profile, None)
         if entry:
             browser_pool.unregister_worker(profile, entry["worker"])
-        self.load_accounts()
+        if self._shutting_down and not self._sessions:
+            self.shutdown_finished.emit()
+        else:
+            self.load_accounts()
 
     def shutdown_sessions(self):
-        entries = list(self._sessions.values())
-        for entry in entries:
+        """Request shutdown without blocking the GUI's event loop."""
+        if self._shutting_down:
+            return not self._sessions
+        self._shutting_down = True
+        if not self._sessions:
+            return True
+
+        for entry in list(self._sessions.values()):
             entry["stopping"] = True
             entry["worker"].cancel_event.set()
+            entry["worker"].scan_cancel_event.set()
             entry["worker"].shutting_down = True
             entry["worker"].shutdown_requested.emit()
-
-        for entry in entries:
-            entry["thread"].wait(70000)
+        QTimer.singleShot(0, self.load_accounts)
+        return False
     
     def start_sync(self, profile):
-
-        self.sync_thread = QThread()
-
-        self.sync_worker = SyncWorker()
-
-        self.sync_worker.moveToThread(
-            self.sync_thread
-        )
-
-        self.sync_thread.started.connect(
-            lambda: self.sync_worker.sync(profile)
-        )
-
-        self.sync_worker.finished.connect(
-            self.sync_thread.quit
-        )
-
-        self.sync_worker.finished.connect(
-            self.sync_worker.deleteLater
-        )
-
-        self.sync_thread.finished.connect(
-            self.sync_thread.deleteLater
-        )
-
-        self.sync_thread.finished.connect(
-            self.load_accounts
-        )
-
-        self.sync_worker.error.connect(
-            print
-        )
-
-        self.sync_thread.start()
+        # Playwright objects must stay on the QThread that owns this profile.
+        worker = browser_pool.get_worker(profile)
+        if worker is None:
+            QMessageBox.information(self, "Profile chưa mở", "Mở nick trước khi đồng bộ nhóm.")
+            return
+        worker.groups_sync_requested.emit()
 
     def on_login(self, account):
 

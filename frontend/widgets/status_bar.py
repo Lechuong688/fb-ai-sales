@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QLabel, QSizePolicy
 
 # Giả định import signals của bạn
 from backend.signals import signals
@@ -14,6 +14,8 @@ class StatusBar(QLabel):
 
         # Chốt cứng chiều cao là 36px để thanh trạng thái luôn gọn gàng ở đáy
         self.setFixedHeight(36)
+        self.setMinimumWidth(0)
+        self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
 
         self.set_status("🟢 Ready")
 
@@ -22,3 +24,4 @@ class StatusBar(QLabel):
     def set_status(self, text: str):
         # Đã cấu hình padding-left trong QSS, nên giờ chỉ cần truyền đúng text
         self.setText(text)
+        self.setToolTip(text)

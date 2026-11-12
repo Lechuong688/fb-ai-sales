@@ -29,7 +29,7 @@ class SystemStatus(QFrame):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
 
-        title = QLabel("System Status")
+        title = QLabel("Trạng thái kết nối")
         title.setObjectName("cardTitle")
         layout.addWidget(title)
 
@@ -40,9 +40,9 @@ class SystemStatus(QFrame):
 
         # Khởi tạo các hàng bằng hàm hỗ trợ
         self.fb_icon, self.fb_val = self._add_row("Facebook")
-        self.browser_icon, self.browser_val = self._add_row("Browser")
-        self.ai_icon, self.ai_val = self._add_row("AI Engine")
-        self.db_icon, self.db_val = self._add_row("Database")
+        self.browser_icon, self.browser_val = self._add_row("Trình duyệt")
+        self.ai_icon, self.ai_val = self._add_row("Trợ lý AI")
+        self.db_icon, self.db_val = self._add_row("Dữ liệu")
 
         layout.addStretch()
 
@@ -69,6 +69,7 @@ class SystemStatus(QFrame):
         row = QHBoxLayout()
 
         icon_lbl = QLabel()
+        icon_lbl.setObjectName("statusValue")
         icon_lbl.setFixedWidth(24) # Giữ cho các Icon luôn thẳng cột dọc
 
         name_lbl = QLabel(name)
@@ -88,7 +89,10 @@ class SystemStatus(QFrame):
 
     def _update_state(self, icon_lbl, val_lbl, icon: str, text: str, state: str):
         """Hàm cập nhật text và màu sắc CSS dựa theo biến state"""
-        icon_lbl.setText(icon)
+        icon_lbl.setText("●")
+        icon_lbl.setProperty("state", state)
+        icon_lbl.style().unpolish(icon_lbl)
+        icon_lbl.style().polish(icon_lbl)
         val_lbl.setText(text)
         
         # Đổi thuộc tính để CSS tự load màu
@@ -102,15 +106,15 @@ class SystemStatus(QFrame):
 
     def set_facebook(self, connected: bool):
         if connected:
-            self._update_state(self.fb_icon, self.fb_val, "🟢", "Connected", "ok")
+            self._update_state(self.fb_icon, self.fb_val, "🟢", "Đã kết nối", "ok")
         else:
-            self._update_state(self.fb_icon, self.fb_val, "🔴", "Offline", "error")
+            self._update_state(self.fb_icon, self.fb_val, "🔴", "Chưa kết nối", "error")
 
     def set_browser(self, ready: bool):
         if ready:
-            self._update_state(self.browser_icon, self.browser_val, "🟢", "Ready", "ok")
+            self._update_state(self.browser_icon, self.browser_val, "🟢", "Sẵn sàng", "ok")
         else:
-            self._update_state(self.browser_icon, self.browser_val, "🔴", "Closed", "error")
+            self._update_state(self.browser_icon, self.browser_val, "🔴", "Chưa mở", "error")
 
     def set_ai(self, status: str):
         # AI có nhiều trạng thái nên ta dựa vào text để xác định màu
@@ -120,10 +124,10 @@ class SystemStatus(QFrame):
             state_color = "ok"
             icon = "🟢"
             
-        self._update_state(self.ai_icon, self.ai_val, icon, status, state_color)
+        self._update_state(self.ai_icon, self.ai_val, icon, "Đang chờ" if status == "Idle" else status, state_color)
 
     def set_database(self, connected: bool):
         if connected:
-            self._update_state(self.db_icon, self.db_val, "🟢", "Connected", "ok")
+            self._update_state(self.db_icon, self.db_val, "🟢", "Đã kết nối", "ok")
         else:
-            self._update_state(self.db_icon, self.db_val, "🟡", "Waiting", "warning")
+            self._update_state(self.db_icon, self.db_val, "🟡", "Chờ kiểm tra", "warning")

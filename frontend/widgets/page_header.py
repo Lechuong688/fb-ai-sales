@@ -11,13 +11,14 @@ class PageHeader(QWidget):
         layout = QVBoxLayout(self)
         
         # Tăng margin dưới lên 24px để tạo khoảng cách rộng rãi với phần thân trang
-        layout.setContentsMargins(0, 0, 0, 24)
+        layout.setContentsMargins(0, 0, 0, 8)
         
         # Tăng khoảng cách giữa Title và Description lên một chút cho dễ thở
         layout.setSpacing(6)
 
         self.title = QLabel(title)
         self.title.setObjectName("pageTitle")
+        self.title.setWordWrap(True)
 
         self.description = QLabel(description)
         self.description.setObjectName("pageDescription")

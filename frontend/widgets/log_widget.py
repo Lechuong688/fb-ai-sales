@@ -1,4 +1,5 @@
 from datetime import datetime
+from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import QListWidget, QListWidgetItem
 from PySide6.QtGui import QColor
 
@@ -16,13 +17,14 @@ class LogWidget(QListWidget):
         # Bật tính năng WordWrap nếu dòng log quá dài (Tùy chọn, rất hữu ích cho Log)
         self.setWordWrap(True) 
 
-        signals.log.connect(self.add_log)
+        signals.log.connect(self.add_log, Qt.QueuedConnection)
 
         self.add_log(
             "SYSTEM",
             "Application Started"
         )
 
+    @Slot(str)
     def add_log(
         self,
         category: str,

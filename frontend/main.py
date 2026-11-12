@@ -7,18 +7,21 @@ from PySide6.QtWidgets import QApplication
 from frontend.main_window import MainWindow
 
 from backend.services.session_service import SessionService
+from backend.diagnostics import configure_diagnostics
 
 def load_styles(app, base_dir: Path):
     # Sử dụng đường dẫn tuyệt đối, an toàn dù bạn chạy script từ bất kỳ đâu
     qss_path = base_dir / "styles" / "theme.qss"
 
     if qss_path.exists():
-        app.setStyleSheet(qss_path.read_text(encoding="utf-8"))
+        stylesheet = qss_path.read_text(encoding="utf-8")
+        app.setStyleSheet(stylesheet.replace("@assets@", (base_dir / "assets").as_posix()))
     else:
         print(f"[CẢNH BÁO] Không tìm thấy file giao diện tại: {qss_path}")
 
 
 def main():
+    configure_diagnostics()
     app = QApplication(sys.argv)
 
     # 1. Base Style "Fusion": Giúp giao diện phẳng và đồng bộ trên mọi Hệ điều hành

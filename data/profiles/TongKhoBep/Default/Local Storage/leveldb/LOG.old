@@ -1,0 +1,14 @@
+2026/11/12-18:58:44.033 1944 Reusing MANIFEST D:\Chương\Code\fb-ai-sales\data\profiles\TongKhoBep\Default\Local Storage\leveldb/MANIFEST-000001
+2026/11/12-18:58:44.042 1944 Recovering log #32
+2026/11/12-18:58:44.043 1944 Level-0 table #35: started
+2026/11/12-18:58:44.048 1944 Level-0 table #35: 64623 bytes OK
+2026/11/12-18:58:44.051 1944 Delete type=0 #32
+2026/11/12-18:58:44.052 4c8c Compacting 4@0 + 1@1 files
+2026/11/12-18:58:44.070 4c8c Generated table #37@0: 37 keys, 56496 bytes
+2026/11/12-18:58:44.070 4c8c Compacted 4@0 + 1@1 files => 56496 bytes
+2026/11/12-18:58:44.071 4c8c compacted to: files[ 0 1 0 0 0 0 0 ]
+2026/11/12-18:58:44.072 4c8c Delete type=2 #25
+2026/11/12-18:58:44.072 4c8c Delete type=2 #27
+2026/11/12-18:58:44.072 4c8c Delete type=2 #31
+2026/11/12-18:58:44.073 4c8c Delete type=2 #33
+2026/11/12-18:58:44.073 4c8c Delete type=2 #35
