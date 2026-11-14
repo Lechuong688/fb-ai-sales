@@ -109,8 +109,24 @@ class CommentPage(BasePage):
         source_layout.addWidget(self.max_posts_input, 1, 2)
         source_layout.setColumnStretch(0, 1)
         source_layout.setColumnStretch(1, 2)
-        source_panel = SectionPanel("Nguồn tìm kiếm", "Bài trong 15 ngày", "01")
+        source_panel = SectionPanel("Nguồn tìm kiếm", "Bài mới · 15 ngày", "01")
         source_panel.body.addLayout(source_layout)
+        group_filter_hint = QLabel("Tự lọc tên nhóm theo sản phẩm quan tâm hoặc danh mục công ty; bỏ qua nhóm không liên quan trước khi mở Facebook.")
+        group_filter_hint.setWordWrap(True)
+        source_panel.body.addWidget(group_filter_hint)
+        self.scan_comments_checkbox = QCheckBox("Tìm khách trong bình luận; bài quảng cáo chỉ đọc khi có nhiều bình luận")
+        self.scan_comments_checkbox.setChecked(True)
+        source_panel.body.addWidget(self.scan_comments_checkbox)
+        self.min_ad_comments_input = QSpinBox()
+        self.min_ad_comments_input.setRange(1, 10000)
+        self.min_ad_comments_input.setValue(10)
+        self.min_ad_comments_input.setSuffix(" bình luận")
+        comment_threshold = QHBoxLayout()
+        comment_threshold.addWidget(QLabel("Chỉ đọc bình luận bài quảng cáo từ"))
+        comment_threshold.addWidget(self.min_ad_comments_input)
+        comment_threshold.addStretch()
+        source_panel.body.addLayout(comment_threshold)
+        self.scan_comments_checkbox.toggled.connect(self.min_ad_comments_input.setEnabled)
         self.layout.addWidget(source_panel)
 
         self.phrases_input = QTextEdit()
@@ -131,7 +147,7 @@ class CommentPage(BasePage):
         self.comment_input = QTextEdit()
         self.comment_input.setMaximumHeight(82)
         self.comment_input.setPlaceholderText(
-            "Tùy chọn: nhập nội dung riêng để thay bản nháp của các bài đã chọn. Không gửi thật."
+            "Tùy chọn: nội dung có sẵn cho các bài đã chọn. Xem và sửa trong hộp duyệt trước khi gửi."
         )
         self.business_context_input = QLineEdit()
         self.business_context_input.setPlaceholderText(
@@ -179,19 +195,27 @@ class CommentPage(BasePage):
         self.open_post_button.setEnabled(False)
         self.select_all_button = QPushButton("Chọn bản nháp đang hiện")
         self.clear_selection_button = QPushButton("Bỏ chọn")
+        self.reply_comments_button = QPushButton("Trả lời bình luận đã chọn")
+        self.reply_comments_button.setEnabled(False)
+        self.reply_comments_button.clicked.connect(self.reply_selected_comments)
+        self.post_comments_button = QPushButton("Bình luận vào bài đã chọn")
+        self.post_comments_button.setEnabled(False)
+        self.post_comments_button.clicked.connect(self.comment_selected_posts)
         self.selection_count = QLabel("0 bài đã chọn")
         self.selection_count.setObjectName("countBadge")
         results_tools.addWidget(self.result_search)
         results_tools.addWidget(self.open_post_button)
         results_tools.addWidget(self.select_all_button)
         results_tools.addWidget(self.clear_selection_button)
+        results_tools.addWidget(self.reply_comments_button)
+        results_tools.addWidget(self.post_comments_button)
         results_tools.addWidget(self.selection_count)
         self.layout.addLayout(results_tools)
 
         self.results = BaseTable()
         self.results.setColumnCount(9)
         self.results.setHorizontalHeaderLabels(
-            ["Chọn", "Tác giả", "Nội dung bài viết", "Liên kết", "Trạng thái", "Quy tắc khớp", "Bình luận dự kiến — sửa bằng bấm đúp", "Mã hàng khớp trong công ty", "Ngày đăng (UTC+7)"]
+            ["Chọn", "Tác giả", "Nội dung bài / bình luận", "Liên kết", "Trạng thái", "Quy tắc khớp", "Bình luận dự kiến — sửa bằng bấm đúp", "Mã hàng khớp trong công ty", "Ngày đăng (UTC+7)"]
         )
         self.results.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         for column, width in ((0, 50), (1, 120), (2, 280), (3, 220), (4, 150), (5, 230), (6, 340)):
@@ -244,11 +268,11 @@ class CommentPage(BasePage):
         self.tools_menu.aboutToShow.connect(lambda: [action.setEnabled(button.isEnabled()) for action, button in menu_actions])
         tools_button = self.toolbar.add_button("Công cụ", None)
         tools_button.setMenu(self.tools_menu)
-        self.stop_scan_button = self.toolbar.add_button("Dừng tìm bài", self.stop_scan)
+        self.stop_scan_button = self.toolbar.add_button("Dừng tác vụ", self.stop_scan)
         self.stop_scan_button.setEnabled(False)
         self.stop_scan_button.hide()
         self.stop_ai_button.hide()
-        self.pause_scan_button = self.toolbar.add_button("Tạm dừng tìm bài", self.toggle_scan_pause)
+        self.pause_scan_button = self.toolbar.add_button("Tạm dừng tác vụ", self.toggle_scan_pause)
         self.pause_ai_button = self.toolbar.add_button("Tạm dừng AI", self.toggle_ai_pause)
         for button in (self.pause_scan_button, self.pause_ai_button):
             button.hide()
@@ -321,13 +345,14 @@ class CommentPage(BasePage):
         self.pause_scan_button.setVisible(active)
         self.pause_scan_button.setEnabled(active)
         if not active:
-            self.pause_scan_button.setText("Tạm dừng tìm bài")
+            self.pause_scan_button.setText("Tạm dừng tác vụ")
         self.stop_ai_button.setEnabled(self._suggestion_thread is not None)
         self.scan_button.setEnabled(not active and self.account_combo.count() > 0)
         self.catalog_sample_button.setEnabled(not active and self.catalog is not None)
         for widget in (self.account_combo, self.source_combo, self.phrases_input,
-                       self.max_posts_input, self.business_context_input, self.comment_input):
+                       self.max_posts_input, self.business_context_input, self.comment_input, self.scan_comments_checkbox):
             widget.setEnabled(not active)
+        self.min_ad_comments_input.setEnabled(not active and self.scan_comments_checkbox.isChecked())
         self.catalog_checkbox.setEnabled(not active and self.catalog is not None)
         self.products_input.setEnabled(not active and not self.catalog_checkbox.isChecked())
         self.results.setEditTriggers(
@@ -342,19 +367,19 @@ class CommentPage(BasePage):
             worker.scan_cancel_event.set()
             self.stop_scan_button.setEnabled(False)
             self.pause_scan_button.setEnabled(False)
-            self.status_label.setText("Đang dừng tìm bài; giữ các kết quả đã có và giữ profile mở...")
+            self.status_label.setText("Đang dừng tác vụ; giữ các kết quả đã có và giữ profile mở...")
 
     def toggle_scan_pause(self):
         if not self._scan_active or self._scan_control.stopped:
             return
         if self._scan_control.paused:
             self._scan_control.resume()
-            self.pause_scan_button.setText("Tạm dừng tìm bài")
-            self.status_label.setText("Đã tiếp tục tìm bài từ vị trí đang quét.")
+            self.pause_scan_button.setText("Tạm dừng tác vụ")
+            self.status_label.setText("Đã tiếp tục tác vụ từ vị trí đang xử lý.")
         else:
             self._scan_control.pause()
-            self.pause_scan_button.setText("Tiếp tục tìm bài")
-            self.status_label.setText("Đã yêu cầu tạm dừng tìm bài sau thao tác hiện tại. Kết quả đang có được giữ nguyên.")
+            self.pause_scan_button.setText("Tiếp tục tác vụ")
+            self.status_label.setText("Đã yêu cầu tạm dừng sau thao tác hiện tại. Kết quả đang có được giữ nguyên.")
 
     def toggle_ai_pause(self):
         if self._suggestion_thread is None or self._ai_control.stopped:
@@ -382,13 +407,24 @@ class CommentPage(BasePage):
         if self._scan_control.paused and progress.get("stage") != "summary":
             return
         if progress.get("stage") == "summary":
-            state = {"cancelled": "Đã dừng", "post_limit": "Đạt số bài đã đặt", "completed": "Đã kết thúc"}.get(progress.get("reason"), "Đã kết thúc")
+            state = {"cancelled": "Đã dừng", "post_limit": "Đạt số bài đã đặt", "completed": "Đã kết thúc", "no_relevant_groups": "Không có nhóm phù hợp sản phẩm"}.get(progress.get("reason"), "Đã kết thúc")
             self.status_label.setText(
                 f"{state}: {progress.get('groups_scanned', 0)}/{progress.get('groups_total', 0)} nhóm, "
-                f"{progress.get('found_total', 0)} bài trong 15 ngày. "
+                f"bỏ {progress.get('groups_skipped_unrelated', 0)} nhóm có tên không liên quan; "
+                f"đã đọc {progress.get('seen_posts', 0)} bài; "
+                f"{progress.get('found_total', 0)} kết quả từ bài viết và bình luận trong 15 ngày. "
+                f"Đã đọc bình luận của {progress.get('comment_sources_read', 0)} bài, {progress.get('comment_errors', 0)} lỗi đọc bình luận. "
+                f"Đã loại {progress.get('skipped_ads', 0)} bài quảng cáo. "
                 f"Bỏ {progress.get('skipped_old', 0)} bài cũ, {progress.get('skipped_unknown_date', 0)} bài chưa rõ ngày; "
+                f"{progress.get('skipped_irrelevant', 0)} bài không khớp nhu cầu/sản phẩm, "
+                f"{progress.get('skipped_no_body', 0)} bài chưa đọc được nội dung, {progress.get('extraction_errors', 0)} lỗi đọc bài. "
                 f"{progress.get('failed_groups', 0)} nhóm lỗi, {progress.get('limited_groups', 0)} nhóm chạm giới hạn quét. "
                 f"Đã lưu {progress.get('saved_posts', 0)} hồ sơ vào Customers; {progress.get('save_errors', 0)} bài lỗi lưu. Chưa gửi bình luận."
+            )
+        elif progress.get('stage') == 'group_filter':
+            self.status_label.setText(
+                f"Lọc tên nhóm: giữ {progress.get('groups_total', 0)}/{progress.get('groups_requested', 0)} nhóm liên quan sản phẩm; "
+                f"bỏ {progress.get('groups_skipped_unrelated', 0)} nhóm. Đang chuẩn bị quét..."
             )
         elif progress.get("stage") == "group_error":
             self.status_label.setText(f"Không đọc được nhóm {progress.get('group_name', '')}: {progress.get('error', '')}. Đang tiếp tục nhóm khác...")
@@ -396,8 +432,11 @@ class CommentPage(BasePage):
             self.status_label.setText(
                 f"Nhóm {progress.get('group_index', 0)}/{progress.get('groups_total', 0)} · {progress.get('group_name', '')} · "
                 f"lượt {progress.get('scrolls', 0)}, đã đọc {progress.get('seen_posts', 0)} bài, "
-                f"tìm được {progress.get('found_total', 0)} bài trong 15 ngày. "
-                f"Bỏ {progress.get('skipped_old', 0)} bài cũ, {progress.get('skipped_unknown_date', 0)} bài chưa rõ ngày."
+                f"tìm được {progress.get('found_total', 0)} kết quả trong 15 ngày; đã đọc bình luận của {progress.get('comment_sources_read', 0)} bài. "
+                f"Đã loại {progress.get('skipped_ads', 0)} bài quảng cáo. "
+                f"Bỏ {progress.get('skipped_old', 0)} bài cũ, {progress.get('skipped_unknown_date', 0)} bài chưa rõ ngày; "
+                f"{progress.get('skipped_irrelevant', 0)} bài không khớp, {progress.get('skipped_no_body', 0)} bài chưa đọc được nội dung, "
+                f"{progress.get('extraction_errors', 0)} lỗi đọc bài."
             )
 
     def _products(self):
@@ -552,7 +591,7 @@ class CommentPage(BasePage):
         self.result_search.clear()
         self.results.setRowCount(0)
         self._update_comment_button()
-        self.status_label.setText(f"Đang tìm bài trong {len(source_urls)} nhóm; chỉ lấy bài trong 15 ngày gần nhất...")
+        self.status_label.setText(f"Đang lọc tên {len(source_urls)} nhóm theo sản phẩm trước khi quét bài trong 15 ngày gần nhất...")
         self._set_scanning(True)
         worker.scan_requested.emit(
             {
@@ -563,6 +602,8 @@ class CommentPage(BasePage):
                 "max_age_days": 15,
                 "scroll_count": 120,
                 "seconds_per_group": 180,
+                "include_comments": self.scan_comments_checkbox.isChecked(),
+                "min_ad_comments": self.min_ad_comments_input.value(),
                 "rules": copy.deepcopy(self.rules),
                 "products": self._products(),
                 "use_catalog": self._active_catalog() is not None,
@@ -613,7 +654,7 @@ class CommentPage(BasePage):
                 (1, post.get("author", "Facebook user")),
                 (2, post.get("message", "")),
                 (3, post.get("url", "")),
-                (4, {"draft": "Bản nháp chờ duyệt", "manual_review": "Cần duyệt thủ công", "skipped": "Bỏ qua", "duplicate": "Trùng bài"}[post["status"]]),
+                (4, ("Trả lời bình luận · " if post.get("target_type") == "comment" else "") + {"draft": "Bản nháp chờ duyệt", "manual_review": "Cần duyệt thủ công", "skipped": "Bỏ qua", "duplicate": "Trùng bài"}[post["status"]]),
                 (5, post["rule_name"] + (" · " + ", ".join(post["matched_keywords"]) if post["matched_keywords"] else "")),
                 (6, manual_comments.get(key, post["comment"]) if post["status"] in {"draft", "manual_review"} else post["comment"]),
                 (7, ", ".join(item["sku"] for item in post.get("catalog_match", {}).get("candidates", [])[:5])
@@ -623,7 +664,7 @@ class CommentPage(BasePage):
                 item = QTableWidgetItem(str(value))
                 if column != 6 or post["status"] not in {"draft", "manual_review"}:
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                item.setToolTip(f"{value}\n{post.get('url', '')}" if column == 2 else str(value) if column == 6 else post["reason"])
+                item.setToolTip(f"{value}\n{post.get('url', '')}\nBài gốc: {post.get('parent_message', '')}" if column == 2 else str(value) if column == 6 else post["reason"])
                 self.results.setItem(row, column, item)
 
         self.results.blockSignals(False)
@@ -644,6 +685,78 @@ class CommentPage(BasePage):
         self.ai_button.setEnabled(len(selected) == 1 and self._suggestion_thread is None and not self._scan_active)
         self.batch_ai_button.setEnabled(1 <= len(selected) <= 10 and self._suggestion_thread is None and not self._scan_active)
         self.selection_count.setText(f"{len(selected)} bài đã chọn")
+        self.reply_comments_button.setEnabled(
+            1 <= len(selected) <= 10 and not self._scan_active and self._suggestion_thread is None
+            and all(post.get('target_type') == 'comment' and real_post_url(post.get('url'))
+                    and post.get('draft_comment', '').strip() and not post.get('reply_sent')
+                    for post in selected))
+        self.post_comments_button.setEnabled(
+            1 <= len(selected) <= 10 and not self._scan_active and self._suggestion_thread is None
+            and all(post.get('target_type', 'post') == 'post' and real_post_url(post.get('url'))
+                    and post.get('draft_comment', '').strip() and not post.get('reply_sent')
+                    for post in selected))
+
+    def reply_selected_comments(self):
+        self._review_selected_targets('comment')
+
+    def comment_selected_posts(self):
+        self._review_selected_targets('post')
+
+    def _review_selected_targets(self, target_type):
+        posts = self._selected_posts()
+        if (self._scan_active or self._suggestion_thread is not None or not 1 <= len(posts) <= 10
+                or any(post.get('target_type', 'post') != target_type or not real_post_url(post.get('url'))
+                       or not post.get('draft_comment', '').strip() or post.get('reply_sent') for post in posts)):
+            return
+        profile = self._pending_profile
+        worker = browser_pool.get_worker(profile)
+        session = browser_pool.get_session(profile)
+        if not worker or not (session and session.running and session.logged_in) or worker.operation_active:
+            QMessageBox.information(self, 'Chưa sẵn sàng', 'Mở đúng profile đã tìm khách và đợi tác vụ đang chạy hoàn tất.')
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle('Duyệt bình luận vào bài' if target_type == 'post' else 'Duyệt trả lời bình luận')
+        dialog.resize(960, 480)
+        layout = QVBoxLayout(dialog)
+        destination = 'bài viết' if target_type == 'post' else 'bình luận'
+        layout.addWidget(QLabel(f'Gửi bằng profile {profile}. Mỗi nội dung sẽ gửi vào {destination} tương ứng.'))
+        table = QTableWidget(len(posts), 3)
+        table.setHorizontalHeaderLabels(['Khách / bình luận gốc', 'Bài gốc', 'Trả lời sẽ gửi — có thể sửa'])
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        table.setWordWrap(True)
+        table.verticalHeader().setDefaultSectionSize(110)
+        for row, post in enumerate(posts):
+            for column, value in enumerate((f"{post.get('author', '')}: {post.get('message', '')}",
+                                           post['url'], self.comment_input.toPlainText().strip() or post['draft_comment'])):
+                item = QTableWidgetItem(value)
+                item.setToolTip(post['url'])
+                if column != 2:
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                table.setItem(row, column, item)
+        layout.addWidget(table)
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.button(QDialogButtonBox.Ok).setText(f'Gửi {len(posts)} trả lời')
+        buttons.button(QDialogButtonBox.Cancel).setText('Hủy')
+        def accept():
+            if all(table.item(row, 2).text().strip() for row in range(len(posts))):
+                dialog.accept()
+        buttons.accepted.connect(accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        reviewed = [dict(post, draft_comment=table.item(row, 2).text().strip()) for row, post in enumerate(posts)]
+        for row in range(self.results.rowCount()):
+            item = self.results.item(row, 0)
+            if item and item.data(Qt.UserRole):
+                match = next((post for post in reviewed if post['url'] == item.data(Qt.UserRole).get('url')), None)
+                if match:
+                    self.results.item(row, 6).setText(match['draft_comment'])
+        self._scan_control = TaskControl()
+        self._set_scanning(True)
+        self.status_label.setText(f'Đang gửi {len(reviewed)} bình luận đã duyệt...')
+        sender = worker.post_comments_requested if target_type == 'post' else worker.comment_replies_requested
+        sender.emit(dict(posts=reviewed, reviewed=True, task_control=self._scan_control))
 
     def _current_post_url(self):
         row = self.results.currentRow()
@@ -725,6 +838,7 @@ class CommentPage(BasePage):
             lambda: worker.requested.emit(
                 {
                     "message": post.get("message", ""),
+                    "post": post,
                     "author": post.get("author", ""),
                     "business_context": self.business_context_input.text().strip(),
                     "task_control": self._ai_control,
@@ -1008,7 +1122,7 @@ class CommentPage(BasePage):
                 return
             self.status_label.setText(
                 f"Đã lưu {result['drafts']} bản nháp vào Customers; bỏ qua {result['skipped']} bài mẫu/cũ/không phù hợp, "
-                f"{len(result['errors'])} lỗi cập nhật. Gửi bình luận thật đang khóa."
+                f"{len(result['errors'])} lỗi cập nhật. Chưa gửi; chọn bình luận rồi dùng nút Trả lời bình luận đã chọn để gửi."
             )
         else:
             self.status_label.setText(f"Đã chuẩn bị {prepared} bản nháp mẫu để bạn duyệt; không lưu mẫu vào Customers. Gửi bình luận thật đang khóa.")
@@ -1027,7 +1141,9 @@ class CommentPage(BasePage):
                     )
                     if result.get("dry_run"):
                         self.results.item(row, 6).setText(result.get("comment", ""))
-                    if result.get("success"):
+                    if result.get("success") or result.get("skipped"):
+                        post['reply_sent'] = True
+                        item.setData(Qt.UserRole, post)
                         item.setCheckState(Qt.Unchecked)
                     break
         self.status_label.setText(result.get("message", "Đã xử lý bình luận."))
@@ -1045,9 +1161,6 @@ class CommentPage(BasePage):
         if task == "scan":
             self._set_scanning(active)
         elif task == "comment":
-            if active:
-                self.comment_button.setEnabled(False)
-            else:
-                self._update_comment_button()
+            self._set_scanning(active)
             if not active:
-                self.status_label.setText("Đã hoàn tất lượt chuẩn bị bình luận.")
+                self.status_label.setText("Đã kết thúc lượt trả lời; xem trạng thái gửi ở từng dòng.")

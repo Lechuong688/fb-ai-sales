@@ -1,3 +1,6 @@
-2026/11/12-18:58:44.140 1944 Reusing MANIFEST D:\Chương\Code\fb-ai-sales\data\profiles\TongKhoBep\Default\Session Storage/MANIFEST-000001
-2026/11/12-18:58:44.142 1944 Recovering log #3
-2026/11/12-18:58:44.147 1944 Reusing old log D:\Chương\Code\fb-ai-sales\data\profiles\TongKhoBep\Default\Session Storage/000003.log 
+2026/11/14-18:42:36.687 4220 Reusing MANIFEST D:\Chương\Code\fb-ai-sales\data\profiles\TongKhoBep\Default\Session Storage/MANIFEST-000001
+2026/11/14-18:42:36.688 4220 Recovering log #4
+2026/11/14-18:42:36.690 4220 Reusing old log D:\Chương\Code\fb-ai-sales\data\profiles\TongKhoBep\Default\Session Storage/000004.log 
+2026/11/14-18:42:42.542 4760 Level-0 table #8: started
+2026/11/14-18:42:42.557 4760 Level-0 table #8: 10936 bytes OK
+2026/11/14-18:42:42.561 4760 Delete type=0 #4

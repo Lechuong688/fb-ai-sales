@@ -9,11 +9,11 @@ class GroupPostScanWorkerTests(unittest.TestCase):
     def setUp(self):
         self.worker = BrowserWorker()
         self.worker.profile_name = "demo"
-        self.groups = [SimpleNamespace(name=f"Nhóm {number}", url=f"https://www.facebook.com/groups/{number}/") for number in (1, 2)]
+        self.groups = [SimpleNamespace(name=f"Hội bếp từ {number}", url=f"https://www.facebook.com/groups/{number}/") for number in (1, 2)]
         self.facebook = Mock()
         self.facebook.last_post_scan_stats = dict(seen_posts=20, found=1, skipped_old=3,
                                                   skipped_unknown_date=2, skipped_future=0, reason="no_new_posts")
-        self.request = dict(phrases=["cần mua"], max_posts=100, max_age_days=999)
+        self.request = dict(phrases=["cần mua"], max_posts=100, max_age_days=999, min_ad_comments=25)
 
     def run_scan(self, request=None, storage_error=None):
         with patch("backend.workers.browser_worker.browser_pool") as pool, \
@@ -44,6 +44,7 @@ class GroupPostScanWorkerTests(unittest.TestCase):
             self.assertEqual(call.kwargs["scroll_count"], 120)
             self.assertEqual(call.kwargs["max_seconds"], 180)
             self.assertTrue(call.kwargs["group_only"])
+            self.assertEqual(call.kwargs['min_ad_comments'], 25)
             self.assertNotEqual(call.kwargs["source_url"], "https://www.facebook.com/")
         self.assertEqual(len(events.buying_posts_found.emit.call_args.args[1]), 2)
         summary = events.buying_posts_progress.emit.call_args.args[1]
@@ -52,6 +53,38 @@ class GroupPostScanWorkerTests(unittest.TestCase):
         self.assertEqual(summary["skipped_unknown_date"], 4)
         pool.close.assert_not_called()
         self.assertFalse(self.worker.operation_active)
+
+    def test_unrelated_groups_are_skipped_before_opening_any_feed(self):
+        self.groups.extend([
+            SimpleNamespace(name='Rơi giấy tờ Hà Nội', url='https://www.facebook.com/groups/3/'),
+            SimpleNamespace(name='Tuyển dụng PT fitness', url='https://www.facebook.com/groups/4/'),
+            SimpleNamespace(name='', url='https://www.facebook.com/groups/5/'),
+        ])
+        self.facebook.find_buying_posts.return_value = []
+        _pool, _service, events = self.run_scan()
+        self.assertEqual([call.kwargs['source_url'] for call in self.facebook.find_buying_posts.call_args_list],
+                         [group.url for group in self.groups[:2]])
+        summary = events.buying_posts_progress.emit.call_args.args[1]
+        self.assertEqual(summary['groups_requested'], 5)
+        self.assertEqual(summary['groups_total'], 2)
+        self.assertEqual(summary['groups_skipped_unrelated'], 3)
+
+    def test_explicit_unrelated_group_is_skipped_without_browser_access(self):
+        self.groups[0].name = 'Mua bán bất động sản'
+        pool, _service, events = self.run_scan(dict(self.request, source_urls=[self.groups[0].url]))
+        pool.get.assert_not_called()
+        self.facebook.find_buying_posts.assert_not_called()
+        events.buying_posts_error.emit.assert_not_called()
+        summary = events.buying_posts_progress.emit.call_args.args[1]
+        self.assertEqual(summary['reason'], 'no_relevant_groups')
+        self.assertEqual(summary['groups_skipped_unrelated'], 1)
+
+    def test_changed_product_scope_changes_groups_scanned(self):
+        self.groups.append(SimpleNamespace(name='Hội máy lọc nước', url='https://www.facebook.com/groups/3/'))
+        self.facebook.find_buying_posts.return_value = []
+        self.run_scan(dict(self.request, products=['máy lọc nước']))
+        self.facebook.find_buying_posts.assert_called_once()
+        self.assertEqual(self.facebook.find_buying_posts.call_args.kwargs['source_url'], self.groups[-1].url)
 
     def test_stop_preserves_results_and_does_not_stop_profile(self):
         def stop_after_first(**_kwargs):

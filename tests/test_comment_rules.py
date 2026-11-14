@@ -55,6 +55,32 @@ class CommentRuleTests(unittest.TestCase):
     def test_empty_product_list_never_matches(self):
         self.assertEqual(suggest_comment("Ai bán bếp từ?", products=[])["status"], "skipped")
 
+    def test_seller_offers_are_not_mistaken_for_customer_questions(self):
+        from backend.services.comment_rules import is_customer_post
+        for text in (
+            'Bếp từ sẵn kho, inbox báo giá',
+            'Máy rửa bát tư vấn miễn phí, giao hàng toàn quốc',
+            'Chuyên bán bếp từ, ai có nhu cầu liên hệ',
+            'Bếp từ còn hàng, giá tốt nhất thị trường',
+            'Ai cần mua bếp từ thì inbox em nhé',
+            'Bếp từ còn hàng, tư vấn và lắp đặt',
+            'Máy rửa bát giá sỉ, nguồn hàng chính hãng',
+        ):
+            with self.subTest(text=text):
+                self.assertFalse(is_customer_post(text))
+        for text in (
+            'Mình cần mua bếp từ cho gia đình',
+            'Mình cần mua bếp từ sẵn kho giao Hà Nội',
+            'Xin tư vấn nên mua máy rửa bát loại nào?',
+            'Shop nào chuyên bán bếp từ Bosch không?',
+            'Máy rửa bát này giá bao nhiêu?',
+            'Báo giá bếp từ giúp mình',
+            'Bếp từ mẫu này còn hàng không?',
+            'Cần mua bếp từ thanh lý còn tốt',
+        ):
+            with self.subTest(text=text):
+                self.assertTrue(is_customer_post(text))
+
     def test_rule_validation_rejects_bad_templates_and_empty_keywords(self):
         for template in ("{unknown}", "{san_pham.__class__}", "{san_pham!r}", "{san_pham:100000000}", "{"):
             rules = copy.deepcopy(DEFAULT_RULES)

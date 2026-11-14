@@ -6,11 +6,13 @@ from pathlib import Path
 import re
 import string
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
-from backend.utils.text_matching import normalize_text, contains_phrase
+from backend.utils.text_matching import normalize_text, contains_phrase, normalize_product_text
 
 
 LIVE_COMMENTS_ENABLED = False
 DEFAULT_BUYER_PHRASES = [
+    "xin review", "xin đánh giá", "review giúp", "xin trải nghiệm", "cho xin trải nghiệm",
+    "chuẩn bị mua", "đang làm nhà", "đang làm bếp", "loại nào", "hãng nào", "rì viu",
     "có bác nào có", "cần mua", "muốn mua", "tìm mua", "ai bán", "mua ở đâu", "xin giá",
     "đang cần mua", "đang muốn mua", "định mua", "dự định mua", "dự tính mua",
     "có nhu cầu mua", "cần tìm mua", "tìm chỗ mua", "tìm nơi bán", "tìm cửa hàng",
@@ -55,7 +57,7 @@ DEFAULT_RULES = [
          "Bác ib em mã {san_pham} và khu vực nhận hàng nhé, em kiểm tra giá cùng phương án giao hàng rồi báo bác ạ.", needs_intent=True),
     rule("price", "Hỏi giá", ["xin giá", "báo giá", "giá bao nhiêu", "bao nhiêu tiền", "giá thế nào", "giá sao", "giá với"],
          "Bác ib em mã {san_pham} hoặc gửi ảnh mẫu đang quan tâm nhé, em kiểm tra và báo giá cụ thể ạ."),
-    rule("advice", "Tư vấn hoặc so sánh", ["tư vấn", "nên mua", "chọn loại nào", "loại nào tốt", "hãng nào tốt", "mua loại nào", "xin review", "xin đánh giá", "review giúp", "có tốt không"],
+    rule("advice", "Tư vấn hoặc so sánh", ["tư vấn", "nên mua", "chọn loại nào", "loại nào tốt", "hãng nào tốt", "mua loại nào", "xin review", "xin đánh giá", "review giúp", "có tốt không", "loại nào", "hãng nào", "xin trải nghiệm", "cho xin trải nghiệm", "rì viu"],
          "Bác cho em xin ngân sách và nhu cầu dùng {san_pham} nhé, em tư vấn vài mẫu để bác tham khảo ạ."),
     rule("availability", "Hỏi ai có hàng", ["có bác nào có", "bác nào có", "các bác có", "có ai có", "ai có", "bên nào có", "còn hàng", "có hàng không", "có sẵn không", "có bán không", "ở đâu có", "ai bán", "có ai bán", "bác nào bán", "shop nào bán", "shop nào có", "chỗ nào bán", "ở đâu bán", "bên nào bán"],
          "Bên em có ạ, bác ib em mã {san_pham} hoặc ảnh mẫu để em kiểm tra đúng hàng và báo giá nhé."),
@@ -66,6 +68,9 @@ DEFAULT_RULES = [
 # Expand the general buying rule as well as acquisition keywords so matching posts
 # survive the relevance filter. Existing user-saved rule files remain untouched.
 DEFAULT_RULES[-1]["keywords"] = list(dict.fromkeys(DEFAULT_RULES[-1]["keywords"] + DEFAULT_BUYER_PHRASES))
+next(item for item in DEFAULT_RULES if item['id'] == 'availability')['keywords'].extend([
+    'shop nào chuyên bán', 'bên nào chuyên bán', 'cửa hàng nào bán', 'cửa hàng nào có',
+])
 
 EXCLUSIONS = [
     "không có nhu cầu", "không cần mua", "không mua nữa", "đã mua được", "đã tìm được",
@@ -73,6 +78,81 @@ EXCLUSIONS = [
     "cần bán", "em bán", "mình bán", "tôi bán", "bên em bán", "em thanh lý", "mình thanh lý",
     "cần thanh lý", "xả kho", "tuyển dụng", "tuyển nhân viên",
 ]
+
+SELLER_PHRASES = [
+    "sẵn kho", "có sẵn tại kho", "hàng về", "chuyên bán", "chuyên cung cấp",
+    "bán buôn", "bán lẻ", "nhận đặt hàng", "nhận order", "chốt đơn", "đặt hàng ngay",
+    "mua ngay", "liên hệ đặt hàng", "inbox báo giá", "inbox nhận giá", "ib nhận giá",
+    "tư vấn miễn phí", "giá tốt nhất thị trường", "xả hàng", "giảm giá sốc",
+    "tổng kho", "phân phối chính hãng", "nhận sửa", "nhận lắp đặt",
+]
+CUSTOMER_REQUEST_PHRASES = [
+    "chuẩn bị mua", "đang làm nhà", "đang làm bếp", "loại nào", "hãng nào",
+    "xin trải nghiệm", "cho xin trải nghiệm", "rì viu",
+    "cần mua", "muốn mua", "tìm mua", "định mua", "dự tính mua", "có nhu cầu mua",
+    "có bác nào có", "bác nào có", "các bác có", "có ai có", "ai có", "ai bán", "bác nào bán",
+    "shop nào", "bên nào", "cửa hàng nào", "chỗ nào", "ở đâu có", "ở đâu bán", "mua ở đâu",
+    "xin giá", "cho xin giá", "giá bao nhiêu", "giá thế nào", "giá sao", "giá với",
+    "bao nhiêu tiền", "bao nhiêu một chiếc", "có hàng không", "có sẵn không", "có bán không",
+    "xin tư vấn", "nhờ tư vấn", "tư vấn giúp", "các bác tư vấn", "mọi người tư vấn",
+    "cho mình hỏi", "cho em hỏi", "nên mua", "nên chọn", "chọn loại nào", "loại nào tốt",
+    "hãng nào tốt", "mua loại nào", "loại nào phù hợp", "mẫu nào phù hợp", "có tốt không",
+    "xin review", "xin đánh giá", "review giúp", "cần tìm", "đang tìm", "nhờ tìm giúp",
+    "cần một", "cần 1", "cần chiếc", "cần cái", "muốn sắm", "sắm mới", "mua tặng",
+    "cần nguồn", "tìm nguồn", "tìm nhà phân phối", "tìm đại lý", "muốn lấy sỉ", "cần lấy sỉ",
+    "cần lắp", "tìm thợ", "thợ lắp",
+]
+
+
+def seller_reason(message):
+    """Identify offers, keeping requests for a seller distinct from self-promotion."""
+    normalized = normalize_text(message)
+    for clause in re.split(r"[.!?;\n]+", str(message or "")):
+        text = normalize_text(clause)
+        # 'Shop nào chuyên bán ...?' describes the supplier being sought.
+        if re.search(r"\b(?:ai ban|(?:shop|ben|cua hang|bac|dai ly) nao|mua o dau)\b", text):
+            if not any(contains_phrase(text, cue) for cue in ("bên em", "shop em", "chúng tôi", "bên mình")):
+                continue
+        own_request = bool(re.match(r'^(?:(?:minh|em|toi|nha minh|nha em) (?:dang )?|dang )?(?:can mua|muon mua|tim mua)\b', text))
+        requested_attributes = {'sẵn kho', 'có sẵn tại kho', 'phân phối chính hãng'} if own_request else set()
+        matched = next((cue for cue in SELLER_PHRASES if cue not in requested_attributes and contains_phrase(text, cue)), None)
+        if matched:
+            return matched
+    # Offers often imitate a buyer question with 'ai cần mua/ai có nhu cầu'.
+    if re.search(r"\bai (?:can mua|muon mua|co nhu cau)\b", normalized) and any(
+            contains_phrase(normalized, cue) for cue in ("inbox", "ib", "liên hệ", "zalo", "đặt hàng")):
+        return "mời khách mua hàng"
+    return ""
+
+
+def is_customer_post(message, rules=None, products=None, catalog=None):
+    result = suggest_comment(message, rules, products, catalog)
+    if result['status'] not in {'draft', 'manual_review'}:
+        return False
+    if any(contains_phrase(message, cue) for cue in CUSTOMER_REQUEST_PHRASES):
+        return True
+    text = normalize_text(message)
+    if re.search(r"\bbao gia\b.{0,80}\b(?:giup|cho minh|cho em)\b", text):
+        return True
+    if re.search(r"\b(?:con|co)\b.{0,80}\bkhong\b", text):
+        return True
+    return result['rule_id'] in {'repair', 'accessory', 'replacement'}
+
+
+def advertising_reason(message):
+    reason = seller_reason(message) or next((cue for cue in (
+        'cần bán', 'em bán', 'mình bán', 'tôi bán', 'bên em bán', 'em thanh lý',
+        'mình thanh lý', 'cần thanh lý', 'xả kho',
+    ) if contains_phrase(message, cue)), '')
+    return reason or ('bài thanh lý' if normalize_text(message).startswith('thanh ly ') else '')
+
+
+def has_interested_product(message, products=None, catalog=None):
+    """Product context is useful even when its author is advertising."""
+    if catalog is not None:
+        return bool(catalog.match(message))
+    text = normalize_product_text(message)
+    return any(contains_phrase(text, product) for product in (DEFAULT_PRODUCTS if products is None else products))
 
 CATALOG_REPLIES = {
     "availability": "Bác ib em sản phẩm {san_pham} đang hỏi nhé, em kiểm tra hàng và báo giá cụ thể ạ.",
@@ -123,17 +203,18 @@ def suggest_comment(message, rules=None, products=None, catalog=None):
     result = dict(status="skipped", rule_id="", rule_name="", matched_keywords=[], product="", comment="", reason="")
     if not normalize_text(message):
         return dict(result, reason="Bài viết không có nội dung.")
-    excluded = next((word for word in EXCLUSIONS if contains_phrase(message, word)), None)
+    excluded = seller_reason(message) or next((word for word in EXCLUSIONS if contains_phrase(message, word)), None)
     if excluded or normalize_text(message).startswith("thanh ly "):
         return dict(result, reason=f"Loại trừ: {excluded or 'bài thanh lý/bán hàng'}.")
     normalized = normalize_text(message)
+    product_text = normalize_product_text(message)
     catalog_match = catalog.match(message) if catalog is not None else None
     product = catalog_match["label"] if catalog_match else None
     if catalog is None:
         product = next((word for word in sorted(products, key=lambda value: len(normalize_text(value)), reverse=True)
-                    if contains_phrase(message, word)
+                    if contains_phrase(product_text, word)
                     and not re.search(r"\b(?:khong (?:mua|lay|chon|dung|can)|khong phai|ngoai tru) "
-                                      + re.escape(normalize_text(word)) + r"\b", normalized)), None)
+                                      + re.escape(normalize_text(word)) + r"\b", product_text)), None)
     if not product:
         return dict(result, reason="Không có sản phẩm trong danh sách quan tâm.")
     result["product"] = product
@@ -161,17 +242,43 @@ def post_identity(url):
     if (parsed.hostname or "").lower() not in {"facebook.com", "www.facebook.com", "m.facebook.com"}:
         return str(url or "")
     query = parse_qs(parsed.query)
-    identity = {key: query[key][0] for key in ("story_fbid", "id") if query.get(key)}
+    identity = {key: query[key][0] for key in ("story_fbid", "id", "comment_id", "reply_comment_id") if query.get(key)}
     path = parsed.path.rstrip("/")
     if not path.endswith(".php"):
         path += "/"
     return urlunparse(("https", "www.facebook.com", path, "", urlencode(identity), ""))
 
 
+def suggest_target(post, rules=None, products=None, catalog=None):
+    """Borrow product context only; intent and exclusions belong to the commenter."""
+    message = post.get("message", "")
+    result = suggest_comment(message, rules, products, catalog)
+    if post.get("target_type") != "comment" or result["product"]:
+        return result
+    parent = post.get("parent_message", "")
+    needs_review = False
+    if catalog is not None:
+        match = catalog.match(parent)
+        product = match["label"] if match else ""
+        needs_review = bool(match and match.get('requires_review'))
+    else:
+        matches = [word for word in sorted(DEFAULT_PRODUCTS if products is None else products,
+                   key=len, reverse=True) if contains_phrase(normalize_product_text(parent), word)]
+        matches = [word for word in matches if not any(word != other and contains_phrase(other, word) for other in matches)]
+        product = matches[0] if matches else ''
+        needs_review = len(matches) > 1
+    if not product:
+        return result
+    result = suggest_comment(f"{message}\n{product}", rules, products, catalog)
+    if needs_review and result['status'] == 'draft':
+        result.update(status='manual_review', reason='Cần xác nhận sản phẩm từ ngữ cảnh bài gốc.')
+    return result
+
+
 def preview_comments(posts, rules=None, products=None, catalog=None):
     results, seen = [], set()
     for post in posts:
-        suggestion = suggest_comment(post.get("message", ""), rules, products, catalog)
+        suggestion = suggest_target(post, rules, products, catalog)
         key = post_identity(post.get("url", ""))
         if key and key in seen:
             suggestion.update(status="duplicate", comment="", reason="Trùng bài viết trong lượt xem trước.")

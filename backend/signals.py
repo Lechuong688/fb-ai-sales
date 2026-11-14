@@ -24,6 +24,9 @@ class AppSignals(QObject):
     leads_changed = Signal()
     comment_result = Signal(str, object)
     facebook_task_status = Signal(str, str, bool)
+    outreach_discovered = Signal(str, object)
+    outreach_progress = Signal(str, object)
+    outreach_finished = Signal(str, object)
 
     # ===== Dashboard =====
     dashboard_changed = Signal()

@@ -9,6 +9,7 @@ from frontend.pages.comment_page import CommentPage
 from frontend.pages.posts import PostPage
 from frontend.pages.customers import CustomersPage
 from frontend.pages.reports import ReportsPage
+from frontend.pages.messenger import MessengerPage
 
 # Định nghĩa kiểu dữ liệu cho một Page (Giúp code tường minh hơn)
 # Tuple gồm: (Tên trang trên Sidebar, Class của Widget hoặc None)
@@ -32,7 +33,7 @@ PAGES: List[PageConfig] = [
     # ENGAGEMENT (Tương tác)
     # ==========================
     ("💬 Customers", CustomersPage),
-    ("📨 Messenger", None),
+    ("📨 Messenger", MessengerPage),
     
     # ==========================
     # SYSTEM & SETTINGS (Hệ thống)

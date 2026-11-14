@@ -1,5 +1,6 @@
 import threading
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timedelta
 
 from backend.browser.facebook import FacebookBrowser
@@ -20,6 +21,9 @@ class FakeLocator:
 
     def nth(self, index):
         return self.values[index]
+
+    def all_inner_texts(self):
+        return [item.inner_text() for item in self.values]
 
 
 class FakeElement:
@@ -73,9 +77,18 @@ class FakePage:
     def wait_for_timeout(self, _milliseconds):
         pass
 
+    def wait_for_function(self, *_args, **_kwargs):
+        pass
+
     def locator(self, selector):
         if selector == '[role="article"]':
             return FakeLocator(self.articles)
+        return FakeLocator()
+
+    def get_by_role(self, *_args, **_kwargs):
+        return FakeLocator()
+
+    def get_by_text(self, *_args, **_kwargs):
         return FakeLocator()
 
 
@@ -86,6 +99,15 @@ class FakeBrowser:
 
 
 class BuyerPostScanTests(unittest.TestCase):
+    def test_feed_that_never_hydrates_is_an_error_not_zero_customers(self):
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+        page = FakePage([])
+        facebook = FacebookBrowser(FakeBrowser(page))
+        with patch.object(page, 'wait_for_function', side_effect=PlaywrightTimeoutError('fixture')):
+            with self.assertRaisesRegex(RuntimeError, 'chưa tải được bài viết'):
+                facebook.find_buying_posts('https://facebook.com/groups/demo/', ['cần mua'], group_only=True)
+        self.assertEqual(facebook.last_post_scan_stats['reason'], 'feed_unreadable')
+
     def test_recent_only_skips_old_future_undated_and_keeps_pinned_order(self):
         now = datetime(2026, 11, 1, 12, tzinfo=VIETNAM_TZ)
         def item(number, age=None):
@@ -147,7 +169,7 @@ class BuyerPostScanTests(unittest.TestCase):
 
             def nth(self, _index):
                 number = self.page.position
-                return FakeArticle("Cần mua bếp từ" if number >= 8 else "Bài chia sẻ thông thường",
+                return FakeArticle("Cần mua bếp từ" if number >= 8 else "Bếp từ sẵn kho, tư vấn miễn phí, inbox báo giá",
                                    f"https://facebook.com/groups/demo/posts/{number}/")
 
         page = FakePage([])
@@ -157,7 +179,7 @@ class BuyerPostScanTests(unittest.TestCase):
         progress = []
         browser = FacebookBrowser(FakeBrowser(page))
         posts = browser.find_buying_posts("https://facebook.com/groups/demo", ["cần mua"], max_posts=1,
-                                          group_only=True, progress_callback=progress.append)
+                                          group_only=True, include_comments=True, progress_callback=progress.append)
         self.assertEqual([post["id"] for post in posts], ["8"])
         self.assertGreater(browser.last_post_scan_stats["scrolls"], 6)
         self.assertTrue(progress)
@@ -168,6 +190,18 @@ class BuyerPostScanTests(unittest.TestCase):
         browser = FacebookBrowser(FakeBrowser(page))
         self.assertEqual(browser.find_buying_posts("https://facebook.com/groups/demo", ["cần mua"]), [])
         self.assertEqual(browser.last_post_scan_stats["reason"], "no_new_posts")
+
+    def test_seller_only_feed_keeps_full_search_budget_until_a_customer_is_found(self):
+        page = FakePage([
+            FakeArticle('Bếp từ sẵn kho, ai cần mua inbox báo giá', 'https://facebook.com/posts/1/'),
+            FakeArticle('Mình cần mua bếp từ cho gia đình', 'https://facebook.com/posts/2/'),
+        ])
+        facebook = FacebookBrowser(FakeBrowser(page))
+        # Already past the 55% reservation, but no eligible thread needs it yet.
+        with patch('backend.browser.facebook.time.monotonic', side_effect=[0, 0, 0] + [100] * 50):
+            posts = facebook.find_buying_posts('https://facebook.com/groups/demo/', ['cần mua'],
+                                              max_posts=1, scroll_count=1, include_comments=True, max_seconds=180)
+        self.assertEqual([post['id'] for post in posts], ['2'])
 
     def test_rule_filter_excludes_seller_before_result_limit(self):
         page = FakePage([

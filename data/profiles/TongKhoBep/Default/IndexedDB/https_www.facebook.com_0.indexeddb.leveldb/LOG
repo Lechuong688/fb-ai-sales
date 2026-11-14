@@ -1,3 +1,10 @@
-2026/11/12-19:01:58.062 32a8 Reusing MANIFEST D:\Chương\Code\fb-ai-sales\data\profiles\TongKhoBep\Default\IndexedDB\https_www.facebook.com_0.indexeddb.leveldb/MANIFEST-000001
-2026/11/12-19:01:58.062 32a8 Recovering log #7
-2026/11/12-19:01:58.068 32a8 Reusing old log D:\Chương\Code\fb-ai-sales\data\profiles\TongKhoBep\Default\IndexedDB\https_www.facebook.com_0.indexeddb.leveldb/000007.log 
+2026/11/14-18:47:25.538 1378 Reusing MANIFEST D:\Chương\Code\fb-ai-sales\data\profiles\TongKhoBep\Default\IndexedDB\https_www.facebook.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/11/14-18:47:25.538 1378 Recovering log #33
+2026/11/14-18:47:25.584 1378 Reusing old log D:\Chương\Code\fb-ai-sales\data\profiles\TongKhoBep\Default\IndexedDB\https_www.facebook.com_0.indexeddb.leveldb/000033.log 
+2026/11/14-18:57:18.663 32d4 Level-0 table #38: started
+2026/11/14-18:57:18.683 32d4 Level-0 table #38: 1718673 bytes OK
+2026/11/14-18:57:18.685 32d4 Delete type=0 #33
+2026/11/14-18:58:02.982 32d4 Compacting 1@1 + 1@2 files
+2026/11/14-18:58:03.019 32d4 Generated table #39@1: 6140 keys, 1557198 bytes
+2026/11/14-18:58:03.019 32d4 Compacted 1@1 + 1@2 files => 1557198 bytes
+2026/11/14-18:58:03.020 32d4 compacted to: files[ 0 0 1 0 0 0 0 ]

@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 
 from backend.services.catalog_importer import DEFAULT_CATALOG_PATH
-from backend.utils.text_matching import normalize_text, contains_phrase
+from backend.utils.text_matching import normalize_text, contains_phrase, normalize_product_text
 
 
 CATEGORY_ALIASES = {
@@ -118,7 +118,7 @@ class ProductCatalog:
         return hits, set().union(*(ids for _, ids in hits)) if hits else set()
 
     def match(self, message):
-        normalized = normalize_text(message)
+        normalized = normalize_product_text(message)
         words = normalized.split()
         category_hits, category_ids = self._phrase_ids(normalized, self._categories)
         brand_hits, brand_ids = self._phrase_ids(normalized, self._brands)

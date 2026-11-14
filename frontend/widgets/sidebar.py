@@ -14,7 +14,7 @@ NAVIGATION = [
     ("Đăng bài", "edit"),
     ("Tìm khách hàng", "search"),
     ("Khách hàng tiềm năng", "contacts"),
-    ("Tin nhắn", "message"),
+    ("Kết nối & chăm sóc", "message"),
     ("Trợ lý AI", "sparkles"),
     ("Báo cáo", "chart"),
     ("Cài đặt", "settings"),

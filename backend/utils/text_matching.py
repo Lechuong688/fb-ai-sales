@@ -11,3 +11,14 @@ def normalize_text(value):
 def contains_phrase(text, phrase):
     text, phrase = normalize_text(text), normalize_text(phrase)
     return bool(phrase) and f" {phrase} " in f" {text} "
+
+
+def normalize_product_text(value):
+    """Recognize common kitchen shorthand without fuzzy matching model codes."""
+    text = normalize_text(value)
+    for alias, canonical in {
+        "mrb": "may rua bat", "mrc": "may rua chen",
+        "bosh": "bosch", "boch": "bosch", "eurusun": "eurosun",
+    }.items():
+        text = re.sub(r"\b" + alias + r"\b", canonical, text)
+    return text

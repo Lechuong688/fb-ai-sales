@@ -41,6 +41,18 @@ class LeadTests(unittest.TestCase):
     def first(self):
         return self.service.list()["records"][0]
 
+    def test_comments_survive_storage_and_rescans_without_merging(self):
+        def comment(number):
+            return dict(buyer_post(), url=f'https://www.facebook.com/groups/100/posts/1/?comment_id={number}',
+                        message='Xin giá với', parent_message='Bên em bán bếp từ', target_type='comment')
+        result = self.service.capture_scan('nick-a', [comment(1), comment(2)])
+        self.assertEqual(result['created'], 2)
+        self.service.capture_scan('nick-b', [comment(1)])
+        records = self.service.list()['records']
+        self.assertEqual(len(records), 2)
+        self.assertTrue(all('comment_id=' in x['post_url'] for x in records))
+        self.assertTrue(all(x['product_label'] == 'bếp từ' and x['draft_comment'] for x in records))
+
     def test_capture_persists_and_can_reopen_with_another_service(self):
         result = self.service.capture_scan("nick-a", [buyer_post()])
         self.assertEqual(result["created"], 1)

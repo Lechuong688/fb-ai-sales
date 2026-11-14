@@ -1,15 +1,18 @@
 import threading
+from urllib.parse import parse_qs, urlparse
 
 from PySide6.QtCore import QObject, QThread, Signal, Slot
 
 from backend.browser.pool import browser_pool
+from backend.browser.outreach import OutreachBrowser, OutreachNeedsReview
 from backend.services.account_service import AccountService
 from backend.services.comment_history_service import CommentHistoryService
 from backend.services.group_service import GroupService
+from backend.services.group_relevance import group_search_terms, group_name_matches
 from backend.services.logger import AppLogger
-from backend.services.comment_rules import LIVE_COMMENTS_ENABLED, preview_comments, suggest_comment
+from backend.services.comment_rules import LIVE_COMMENTS_ENABLED, preview_comments
 from backend.services.product_catalog import load_company_catalog
-from backend.services.lead_service import LeadService
+from backend.services.lead_service import LeadService, real_post_url
 from backend.services.publishing_service import PublishingService
 from backend.facebook.parsers.group_parser import normalize_group_url
 from backend.signals import signals
@@ -27,9 +30,14 @@ class BrowserWorker(QObject):
     stop_requested = Signal()
     scan_requested = Signal(object)
     comment_requested = Signal(object)
+    comment_replies_requested = Signal(object)
+    post_comments_requested = Signal(object)
     tile_requested = Signal(object)
     groups_sync_requested = Signal()
     publish_requested = Signal(object)
+    outreach_search_requested = Signal(object)
+    outreach_requested = Signal(object)
+    outreach_open_requested = Signal(str)
 
     finished = Signal()
     session_stopped = Signal(str)
@@ -44,6 +52,7 @@ class BrowserWorker(QObject):
         self.cancel_event = threading.Event()
         self.scan_cancel_event = threading.Event()
         self.group_control = TaskControl()
+        self.outreach_control = TaskControl()
         self.profile_name = ""
         self.account = None
         self.shutting_down = False
@@ -52,9 +61,14 @@ class BrowserWorker(QObject):
         self.stop_requested.connect(self.close_profile)
         self.scan_requested.connect(self.scan_buying_posts)
         self.comment_requested.connect(self.comment_on_posts)
+        self.comment_replies_requested.connect(self.reply_to_selected_comments)
+        self.post_comments_requested.connect(self.comment_on_selected_posts)
         self.tile_requested.connect(self.tile_profile)
         self.groups_sync_requested.connect(self.rescan_groups)
         self.publish_requested.connect(self.publish_posts)
+        self.outreach_search_requested.connect(self.discover_outreach)
+        self.outreach_requested.connect(self.run_outreach)
+        self.outreach_open_requested.connect(self.open_outreach_target)
         self.shutdown_requested.connect(self.shutdown_profile)
 
     def _emit_runtime_status(self):
@@ -362,23 +376,31 @@ class BrowserWorker(QObject):
                 raise RuntimeError("Nick chưa có nhóm đã đồng bộ. Vào Groups và quét nhóm trước.")
             if any(url not in available for url in sources):
                 raise RuntimeError("Nguồn phải là nhóm đã đồng bộ của nick đang chọn. Hãy làm mới danh sách nhóm.")
-            AppLogger.log(f"Tìm bài mua hàng trong {len(sources)} nhóm; chỉ lấy bài trong 15 ngày gần nhất.")
-            browser = browser_pool.get(self.profile_name)
-            facebook = browser.facebook
-            message_filter = None
             catalog = load_company_catalog() if request.get("use_catalog") else None
             if request.get("use_catalog") and catalog is None:
                 raise RuntimeError("Chưa có danh mục hàng hóa công ty để quét.")
-            if "rules" in request:
-                message_filter = lambda text: suggest_comment(
-                    text, request["rules"], request.get("products"), catalog
-                )["status"] in {"draft", "manual_review"}
+            requested_count = len(sources)
+            terms = group_search_terms(request.get('products'), catalog)
+            skipped_groups = [url for url in sources if not group_name_matches(available[url], terms)]
+            sources = [url for url in sources if group_name_matches(available[url], terms)]
+            for url in skipped_groups:
+                AppLogger.log(f"Bỏ qua nhóm không liên quan sản phẩm: {available[url] or '(chưa có tên)'} · {url}")
+            signals.buying_posts_progress.emit(self.profile_name, dict(
+                stage='group_filter', groups_total=len(sources), groups_requested=requested_count,
+                groups_skipped_unrelated=len(skipped_groups),
+            ))
+            AppLogger.log(f"Lọc tên nhóm: giữ {len(sources)}/{requested_count} nhóm liên quan; bỏ {len(skipped_groups)} nhóm. Chỉ lấy bài trong 15 ngày gần nhất.")
+            if sources:
+                facebook = browser_pool.get(self.profile_name).facebook
             posts, errors, scanned, limited_groups = {}, [], 0, 0
             saved_posts, save_errors = 0, 0
             lead_service = None
             limit = max(1, min(int(request.get("max_posts", 100)), 500))
-            totals = dict(seen_posts=0, skipped_old=0, skipped_unknown_date=0, skipped_future=0)
-            stop_reason = "completed"
+            totals = dict(seen_posts=0, skipped_old=0, skipped_unknown_date=0, skipped_future=0,
+                          skipped_no_body=0, skipped_irrelevant=0, extraction_errors=0,
+                          skipped_ads=0,
+                          comment_sources_read=0, comment_errors=0)
+            stop_reason = "completed" if sources else 'no_relevant_groups'
             for group_index, source in enumerate(sources, 1):
                 if cancellation.is_set():
                     stop_reason = "cancelled"
@@ -392,10 +414,13 @@ class BrowserWorker(QObject):
                 try:
                     found = facebook.find_buying_posts(
                         source_url=source, phrases=request["phrases"], max_posts=limit - len(posts),
-                        cancel_event=cancellation, message_filter=message_filter,
+                        cancel_event=cancellation,
                         scroll_count=request.get("scroll_count", 120), max_age_days=15,
                         max_seconds=request.get("seconds_per_group", 180), group_only=True,
                         progress_callback=progress,
+                        include_comments=request.get("include_comments", True),
+                        min_ad_comments=request.get("min_ad_comments", 10),
+                        products=request.get("products"), catalog=catalog, rules=request.get("rules"),
                     )
                     found = [dict(post, source_name=available[source], source_url=source) for post in found]
                     for post in found:
@@ -418,9 +443,17 @@ class BrowserWorker(QObject):
                     signals.buying_posts_found.emit(self.profile_name, list(posts.values()))
                     AppLogger.log(
                         f"Nhóm {group_index}/{len(sources)} · {available[source]}: "
-                        f"{len(found)} bài phù hợp; bỏ {stats.get('skipped_old', 0)} bài cũ, "
+                        f"{len(found)} bài phù hợp / {stats.get('seen_posts', 0)} bài đọc được "
+                        f"/ {stats.get('seen_cards', 0)} khối hiển thị; "
+                        f"{stats.get('skipped_no_body', 0)} bài thiếu nội dung, "
+                        f"{stats.get('skipped_irrelevant', 0)} bài không khớp, "
+                        f"{stats.get('skipped_ads', 0)} bài quảng cáo bị loại khỏi kết quả; "
+                        f"{stats.get('extraction_errors', 0)} lỗi trích xuất; "
+                        f"bỏ {stats.get('skipped_old', 0)} bài cũ, "
                         f"{stats.get('skipped_unknown_date', 0)} bài chưa rõ ngày; dừng nhóm: {stats.get('reason', 'xong')}."
                     )
+                    if stats.get('last_extraction_error'):
+                        AppLogger.log(f"Lỗi đọc bài gần nhất tại {source}: {stats['last_extraction_error']}")
                 except Exception as exc:
                     errors.append(source)
                     AppLogger.exception(f"Không quét được nhóm {available[source]}: {exc}")
@@ -441,6 +474,7 @@ class BrowserWorker(QObject):
             signals.buying_posts_progress.emit(self.profile_name, dict(
                 totals, stage="summary", reason=stop_reason, groups_scanned=scanned,
                 groups_total=len(sources), failed_groups=len(errors), found_total=len(result),
+                groups_requested=requested_count, groups_skipped_unrelated=len(skipped_groups),
                 limited_groups=limited_groups,
                 saved_posts=saved_posts, save_errors=save_errors,
             ))
@@ -454,8 +488,8 @@ class BrowserWorker(QObject):
 
     @Slot(object)
     def comment_on_posts(self, request):
-        # Live sending stays locked until the user has reviewed this feature.
-        # Neither request flags nor the UI can bypass this application-level lock.
+        # Bulk post comments stay preview-only. Reviewed comment replies use
+        # reply_to_selected_comments and their own review dialog.
         if not LIVE_COMMENTS_ENABLED or request.get("dry_run", True):
             for post in preview_comments(
                 request.get("posts", []), request.get("rules"), request.get("products"),
@@ -466,6 +500,54 @@ class BrowserWorker(QObject):
                     "message": "Chỉ xem trước; chưa gửi bình luận.",
                 })
             return
+        self._send_comments(request)
+
+    @Slot(object)
+    def comment_on_selected_posts(self, request):
+        """Send the exact post drafts reviewed in the dedicated dialog."""
+        posts = request.get('posts') or []
+        if request.get('reviewed') is not True or not 1 <= len(posts) <= 10:
+            signals.buying_posts_error.emit(self.profile_name, 'Duyệt từ 1 đến 10 bình luận trước khi gửi.')
+            return
+        targets = []
+        for post in posts:
+            url = real_post_url(post.get('url'))
+            query = parse_qs(urlparse(url or '').query)
+            if (not url or {'comment_id', 'reply_comment_id'} & query.keys()
+                    or post.get('target_type', 'post') != 'post'
+                    or not str(post.get('draft_comment') or '').strip()):
+                signals.buying_posts_error.emit(self.profile_name, 'Mỗi bình luận cần link bài gốc và nội dung đã duyệt.')
+                return
+            targets.append(dict(post, url=url))
+        session = browser_pool.get_session(self.profile_name)
+        if not (session and session.running and session.logged_in):
+            signals.buying_posts_error.emit(self.profile_name, 'Profile chưa đăng nhập hoặc đã đóng.')
+            return
+        self._send_comments(dict(request, posts=targets))
+
+    @Slot(object)
+    def reply_to_selected_comments(self, request):
+        """Separate reviewed comment replies from the locked bulk-post sender."""
+        posts = request.get('posts') or []
+        if request.get('reviewed') is not True or not 1 <= len(posts) <= 10:
+            signals.buying_posts_error.emit(self.profile_name, 'Duyệt từ 1 đến 10 trả lời trước khi gửi.')
+            return
+        targets = []
+        for post in posts:
+            url = real_post_url(post.get('url'))
+            query = parse_qs(urlparse(url or '').query)
+            if (not url or not query.get('comment_id') or post.get('target_type') != 'comment'
+                    or not str(post.get('draft_comment') or '').strip()):
+                signals.buying_posts_error.emit(self.profile_name, 'Mỗi trả lời cần đúng link bình luận và nội dung đã duyệt.')
+                return
+            targets.append(dict(post, url=url))
+        session = browser_pool.get_session(self.profile_name)
+        if not (session and session.running and session.logged_in):
+            signals.buying_posts_error.emit(self.profile_name, 'Profile chưa đăng nhập hoặc đã đóng.')
+            return
+        self._send_comments(dict(request, posts=targets))
+
+    def _send_comments(self, request):
         if self.operation_active:
             signals.buying_posts_error.emit(
                 self.profile_name,
@@ -474,12 +556,14 @@ class BrowserWorker(QObject):
             return
 
         self.operation_active = True
+        self.scan_cancel_event.clear()
+        cancellation = _ScanCancellation(self.cancel_event, self.scan_cancel_event, control=request.get('task_control'))
         signals.facebook_task_status.emit(self.profile_name, "comment", True)
         try:
             facebook = browser_pool.get(self.profile_name).facebook
             history = CommentHistoryService()
             for post in request["posts"]:
-                if self.cancel_event.is_set():
+                if cancellation.is_set():
                     break
                 if history.was_sent(self.profile_name, post["url"]):
                     result = {
@@ -492,12 +576,13 @@ class BrowserWorker(QObject):
                     AppLogger.log("Bỏ qua bài đã bình luận trước đó.")
                     continue
                 try:
-                    facebook.comment_on_post(post["url"], request["text"])
+                    text = post.get("draft_comment") or post.get("comment") or request.get("text", "")
+                    facebook.comment_on_post(post["url"], text)
                     try:
                         history.record(
                             self.profile_name,
                             post["url"],
-                            request["text"],
+                            text,
                             "sent",
                         )
                     except Exception as history_error:
@@ -515,7 +600,7 @@ class BrowserWorker(QObject):
                         history.record(
                             self.profile_name,
                             post["url"],
-                            request["text"],
+                            text,
                             "failed",
                             str(exc),
                         )
@@ -532,12 +617,109 @@ class BrowserWorker(QObject):
                 signals.comment_result.emit(self.profile_name, result)
                 if result["success"]:
                     # Avoid sending comments too rapidly across a batch.
-                    self.cancel_event.wait(2)
+                    cancellation.wait(2)
         except Exception as exc:
             signals.buying_posts_error.emit(self.profile_name, str(exc))
         finally:
             self.operation_active = False
             signals.facebook_task_status.emit(self.profile_name, "comment", False)
+
+    @Slot(object)
+    def discover_outreach(self, request):
+        if self.operation_active:
+            signals.outreach_finished.emit(self.profile_name, dict(error='Nick đang xử lý tác vụ khác.'))
+            return
+        self.operation_active = True
+        cancellation = TaskCancellation(self.cancel_event, control=request.get('control') or self.outreach_control)
+        signals.facebook_task_status.emit(self.profile_name, 'outreach_search', True)
+        try:
+            session = browser_pool.get_session(self.profile_name)
+            if not (session and session.running and session.logged_in):
+                raise RuntimeError('Profile chưa đăng nhập.')
+            adapter = OutreachBrowser(browser_pool.get(self.profile_name).facebook)
+            results = adapter.discover(request['kind'], request.get('query', ''), request.get('industry', ''),
+                request.get('region', ''), request.get('limit', 50), cancel=cancellation,
+                progress=lambda value: signals.outreach_progress.emit(self.profile_name, value))
+            request['service'].save_targets(self.profile_name, results)
+            signals.outreach_discovered.emit(self.profile_name, results)
+        except InterruptedError:
+            signals.outreach_finished.emit(self.profile_name, dict(message='Đã dừng tìm kiếm. Danh sách đã lưu được giữ nguyên.'))
+        except Exception as exc:
+            AppLogger.exception(f'Lỗi tìm đối tượng: {exc}')
+            signals.outreach_finished.emit(self.profile_name, dict(error=str(exc)))
+        finally:
+            self.operation_active = False
+            signals.facebook_task_status.emit(self.profile_name, 'outreach_search', False)
+
+    @Slot(object)
+    def run_outreach(self, request):
+        service, job = request['service'], request['job']
+        adapter = None
+        owns_operation = False
+        result = dict(status='failed', message='Không thực hiện được tác vụ.')
+        class JobCancellation:
+            def is_set(inner):
+                return self.cancel_event.is_set() or service.is_cancelled(job['id'], job['token'])
+        cancellation = TaskCancellation(JobCancellation(), control=request.get('control'))
+        try:
+            if self.operation_active:
+                raise RuntimeError('Profile đang bận. Lịch chưa thực hiện; hãy tạo lại sau khi kiểm tra.')
+            stored = service.running_job(job['id'], job['token'])
+            if not stored:
+                raise InterruptedError('Lịch không còn ở trạng thái đang chạy.')
+            job = stored
+            if job['profile'] != self.profile_name or service.is_cancelled(job['id'], job['token']):
+                raise InterruptedError('Lịch đã dừng hoặc không thuộc profile này.')
+            session = browser_pool.get_session(self.profile_name)
+            if not (session and session.running and session.logged_in):
+                raise RuntimeError('Profile chưa đăng nhập.')
+            self.operation_active = owns_operation = True
+            signals.facebook_task_status.emit(self.profile_name, 'outreach', True)
+            if job['action'] == 'group_post':
+                joined = {normalize_group_url(group.url) for group in GroupService().get_for_profile(self.profile_name)}
+                if normalize_group_url(job['target']) not in joined:
+                    raise RuntimeError('Nhóm chưa có trong danh sách đã tham gia của nick. Quét lại Groups trước khi đăng.')
+            adapter = OutreachBrowser(browser_pool.get(self.profile_name).facebook)
+            result = adapter.perform(job, cancellation)
+        except InterruptedError as exc:
+            result = dict(status='review' if adapter and adapter.mutated else 'cancelled', message=str(exc))
+        except OutreachNeedsReview as exc:
+            result = dict(status='review', message=str(exc))
+        except Exception as exc:
+            result = dict(status='review' if adapter and adapter.mutated else 'failed', message=str(exc))
+            AppLogger.exception(f'Lỗi lịch kết nối {job["id"]}: {exc}')
+        finally:
+            try:
+                service.finish(job['id'], job['token'], result['status'], result['message'])
+            except Exception as exc:
+                AppLogger.exception(f'Không lưu được kết quả lịch: {exc}')
+                result = dict(status='review', message=f'Không lưu được kết quả, kiểm tra Facebook trước khi chạy lại: {exc}')
+            if owns_operation:
+                self.operation_active = False
+                signals.facebook_task_status.emit(self.profile_name, 'outreach', False)
+            signals.outreach_finished.emit(self.profile_name, dict(result, job_id=job['id']))
+
+    @Slot(str)
+    def open_outreach_target(self, url):
+        if self.operation_active:
+            signals.outreach_finished.emit(self.profile_name, dict(error='Profile đang bận, đợi tác vụ kết thúc trước khi mở đích.'))
+            return
+        try:
+            from backend.services.outreach_service import normalize_target
+            valid = any(self._valid_outreach_url(kind, url, normalize_target) for kind in ('group', 'person', 'thread', 'post'))
+            if not valid:
+                raise ValueError('Link đích không hợp lệ.')
+            OutreachBrowser(browser_pool.get(self.profile_name).facebook).open(url, self.cancel_event)
+        except Exception as exc:
+            signals.outreach_finished.emit(self.profile_name, dict(error=str(exc)))
+
+    @staticmethod
+    def _valid_outreach_url(kind, url, normalizer):
+        try:
+            normalizer(kind, url)
+            return True
+        except ValueError:
+            return False
 
     @Slot()
     def shutdown_profile(self):

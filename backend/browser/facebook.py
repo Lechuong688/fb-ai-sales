@@ -2,12 +2,12 @@ import re
 import time
 from pathlib import Path
 from datetime import datetime, timedelta
-from urllib.parse import parse_qs, urljoin, urlparse
+from urllib.parse import parse_qs, urljoin, urlparse, urlencode
 
 from playwright.sync_api import Error as PlaywrightError, TimeoutError
 from backend.utils.text_matching import normalize_text
 from backend.facebook.parsers.group_parser import normalize_group_url
-from backend.services.comment_rules import contains_phrase, post_identity
+from backend.services.comment_rules import contains_phrase, post_identity, is_customer_post, advertising_reason, has_interested_product
 from backend.facebook.parsers.post_date import parse_post_date, VIETNAM_TZ
 
 
@@ -486,7 +486,7 @@ class FacebookBrowser:
         for link in links:
             nodes = [link]
             try:
-                nested = link.locator("time, abbr, [data-utime]")
+                nested = link.locator("time, abbr, [data-utime], [datetime], [title], [aria-label]")
                 nodes.extend(nested.nth(index) for index in range(min(nested.count(), 4)))
             except Exception:
                 pass
@@ -549,6 +549,138 @@ class FacebookBrowser:
         except Exception:
             page.mouse.wheel(0, 1600)
 
+    @staticmethod
+    def _select_new_posts(page, cancel_event=None):
+        """Select the feed's New posts control, excluding comment sort menus."""
+        labels = re.compile(r'^(?:Phù hợp nhất|Hoạt động mới đây|Bài viết mới|Most relevant|Recent activity|New posts)(?:\s*[▾▼])?$', re.I)
+        newest = re.compile(r'^(?:Bài viết mới|New posts)(?:\s*[▾▼])?$', re.I)
+        for attempt in range(4):
+            if cancel_event is not None and cancel_event.is_set():
+                return False
+            controls = page.get_by_text(labels)
+            if not controls.count():
+                controls = page.get_by_role('button', name=labels)
+            if controls.count() or attempt == 3:
+                break
+            page.wait_for_timeout(500)
+        for index in range(min(controls.count(), 10)):
+            if cancel_event is not None and cancel_event.is_set():
+                return False
+            control = controls.nth(index)
+            if not control.is_visible() or control.evaluate('el => Boolean(el.closest("[role=article]"))'):
+                continue
+            if newest.fullmatch(control.inner_text(timeout=1000).strip()):
+                return True
+            control.click(timeout=3000)
+            options = page.get_by_text(newest)
+            for option_index in reversed(range(options.count())):
+                option = options.nth(option_index)
+                if not option.is_visible():
+                    continue
+                if cancel_event is not None and cancel_event.is_set():
+                    return False
+                option.click(timeout=3000)
+                page.wait_for_timeout(700)
+                page.get_by_text(newest).first.wait_for(state='visible', timeout=5000)
+                selected = page.get_by_text(newest)
+                if any(selected.nth(i).is_visible() and selected.nth(i).evaluate(
+                        'el => !el.closest("[role=menu], [role=menuitem], [role=listbox], [role=article]")')
+                        for i in range(selected.count())):
+                    return True
+                raise RuntimeError('Facebook chưa chuyển sang Bài viết mới; đã dừng quét nhóm.')
+            raise RuntimeError('Không chọn được Bài viết mới trong menu nhóm. Hãy kiểm tra bộ lọc Facebook rồi thử lại.')
+        # Some group layouts hide this menu; retain the chronological URL request.
+        return False
+
+    @staticmethod
+    def _group_post_link(href, group_ids):
+        """Accept the post URL forms Facebook uses in group feeds."""
+        candidate = urljoin('https://www.facebook.com/', href)
+        parsed = urlparse(candidate)
+        host = (parsed.hostname or '').lower()
+        if parsed.scheme not in {'http', 'https'} or host not in {'facebook.com', 'www.facebook.com', 'm.facebook.com'}:
+            return ''
+        query = parse_qs(parsed.query)
+        if {'comment_id', 'reply_comment_id'} & query.keys():
+            return ''
+        if group_ids:
+            match = re.match(r'^/groups/([^/]+)/(?:posts|permalink)/([^/?#]+)', parsed.path)
+            if match:
+                if match.group(1) not in group_ids:
+                    return ''
+            else:
+                group = re.fullmatch(r'/groups/([^/]+)/?', parsed.path)
+                ids = query.get('multi_permalinks') or []
+                if group and group.group(1) in group_ids and len(ids) == 1 and ids[0].isdigit():
+                    candidate = f'https://www.facebook.com/groups/{group.group(1)}/posts/{ids[0]}/'
+                elif parsed.path in {'/permalink.php', '/story.php'} and query.get('id', [''])[0] in group_ids and query.get('story_fbid'):
+                    candidate = f'https://www.facebook.com/groups/{query["id"][0]}/posts/{query["story_fbid"][0]}/'
+                else:
+                    return ''
+        return post_identity(candidate)
+
+    @staticmethod
+    def _post_links(article):
+        selector = 'a[href*="/posts/"], a[href*="/permalink/"], a[href*="story_fbid="], a[href*="multi_permalinks="]'
+        links = article.locator(selector)
+        if links.count():
+            return links
+        # Some timestamp anchors receive their real permalink on mouseover.
+        pending = article.locator('h2 a, h3 a, a[aria-label], a:has(time), a:has(abbr), a[href="#"]')
+        attempts = 0
+        for index in range(min(pending.count(), 12)):
+            link = pending.nth(index)
+            try:
+                href = link.get_attribute('href') or ''
+                label = link.get_attribute('aria-label') or link.inner_text(timeout=500)
+                if href not in {'', '#'} and not parse_post_date(label):
+                    continue
+                link.hover(timeout=800)
+                attempts += 1
+                if links.count() or attempts >= 3:
+                    break
+            except PlaywrightError:
+                continue
+        return links
+
+    @staticmethod
+    def _read_post_message(article):
+        # Feed layouts use several attributes and do not always put them on a div.
+        body = article.locator('div[data-ad-preview="message"]')
+        if not body.count():
+            body = article.locator('[data-ad-preview="message"], [data-ad-comet-preview="message"], [data-ad-rendering-role="story_message"]')
+        if not body.count():
+            # A marker-free layout is usable only when its header and action row
+            # delimit the post text. Never use the whole card's inner_text: that
+            # would turn questions in the comments into the author's intent.
+            try:
+                return article.evaluate("""root => {
+                    const heading = root.querySelector('h2, h3');
+                    if (!heading) return '';
+                    const after = (a, b) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+                    const actions = [...root.querySelectorAll('[role="button"], button')];
+                    const boundary = actions.find(node => after(heading, node) &&
+                        /^(?:Thích|Like|Bình luận|Comment|Chia sẻ|Share)$/i.test(node.innerText.trim()));
+                    if (!boundary) return '';
+                    return [...root.querySelectorAll('div[dir="auto"]')].filter(node => {
+                        if (node.closest('a, button, [role="button"], h2, h3, [contenteditable="true"]')) return false;
+                        const owner = node.closest('[role="article"]');
+                        if (owner && owner !== root) return false;
+                        if (node.querySelector('div[dir="auto"]')) return false;
+                        return after(heading, node) && after(node, boundary);
+                    }).map(node => node.innerText.trim()).filter(Boolean).join('\\n');
+                }""").strip()
+            except (AttributeError, PlaywrightError):
+                return ''
+        body = body.first
+        try:
+            more = body.get_by_text(re.compile(r'^(?:Xem thêm|See more)$', re.I))
+            if more.count() and more.first.is_visible():
+                more.first.click(timeout=1500)
+        except (AttributeError, PlaywrightError):
+            pass
+        return body.inner_text(timeout=2000).strip()
+
     def find_buying_posts(
         self,
         source_url,
@@ -562,6 +694,11 @@ class FacebookBrowser:
         max_seconds=120,
         group_only=False,
         progress_callback=None,
+        include_comments=False,
+        products=None,
+        catalog=None,
+        rules=None,
+        min_ad_comments=10,
     ):
         """Collect recent buyer posts; never infer a date from comment timestamps."""
         page = self.page
@@ -585,10 +722,14 @@ class FacebookBrowser:
         max_age_days = max(1, min(int(max_age_days), 15))
         max_posts = max(1, min(int(max_posts), 500))
         scroll_count = max(1, min(int(scroll_count), 300))
+        min_ad_comments = max(1, min(int(min_ad_comments), 10000))
         clock = getattr(cancel_event, "active_time", time.monotonic)
         deadline = clock() + max(1, min(float(max_seconds), 600))
         stats = self.last_post_scan_stats = dict(
             seen_posts=0, found=0, skipped_old=0, skipped_unknown_date=0,
+            skipped_no_body=0, skipped_irrelevant=0, extraction_errors=0,
+            skipped_ads=0,
+            seen_cards=0, cards_without_post_link=0,
             skipped_future=0, scrolls=0, reason="max_scrolls", max_age_days=max_age_days,
             cutoff=(now - timedelta(days=max_age_days)).isoformat(),
         )
@@ -607,62 +748,87 @@ class FacebookBrowser:
             except ValueError:
                 raise RuntimeError("Facebook không mở đúng trang nhóm. Kiểm tra quyền truy cập nhóm rồi thử lại.") from None
             group_ids = {group_id, urlparse(resolved_group).path.split("/")[2]}
+            stats['feed_sort'] = 'new_posts' if self._select_new_posts(page, cancel_event) else 'chronological_requested'
         else:
             group_ids = set()
 
+        # domcontentloaded precedes Facebook's async feed hydration. Do not start
+        # counting empty scrolls while only the page skeleton has loaded.
+        try:
+            page.wait_for_function("""() => Boolean(document.querySelector(
+                '[role="article"] a[href], [data-pagelet^="FeedUnit_"] a[href], [role="feed"] > div a[href], '
+                + '[data-ad-preview="message"], [data-ad-comet-preview="message"], [data-ad-rendering-role="story_message"]'
+            ))""", timeout=15000)
+        except TimeoutError:
+            stats['reason'] = 'feed_unreadable'
+            raise RuntimeError('Nhóm chưa tải được bài viết hoặc không có quyền xem. Không thể kết luận nhóm không có khách hàng.') from None
+
         posts = {}
+        comment_sources = {}
+        feed_started = clock()
+        feed_remaining = deadline - clock()
+        feed_deadline = feed_started + feed_remaining * 0.55
+        ad_feed_deadline = feed_started + feed_remaining * 0.8
+        feed_stop = deadline
         observed, processed, old_urls, undated_urls, future_urls = set(), set(), set(), set(), set()
+        missing_body_urls, irrelevant_urls, error_urls = set(), set(), set()
+        ad_urls = set()
         date_attempts = {}
         stalled = 0
         articles = page.locator('[role="article"]')
+        feed_units = page.locator('[data-pagelet^="FeedUnit_"], [role="feed"] > div')
+        message_blocks = page.locator('[data-ad-preview="message"], [data-ad-comet-preview="message"], [data-ad-rendering-role="story_message"]')
 
         for scroll_index in range(scroll_count):
             if cancel_event is not None and cancel_event.is_set():
                 stats["reason"] = "cancelled"
                 break
             self.dismiss_group_welcome(cancel_event)
-            if clock() >= deadline:
+            if clock() >= feed_stop:
                 stats["reason"] = "time_budget"
                 break
 
             before_count = len(observed)
-            total = articles.count()
+            pools = [articles, feed_units]
+            if message_blocks.count():
+                # Some group feeds expose neither article roles nor FeedUnit
+                # wrappers. Start at a message and find its nearest post header.
+                pools.append(message_blocks.locator(
+                    'xpath=ancestor::*[.//a[contains(@href,"/posts/") or contains(@href,"/permalink/") '
+                    'or contains(@href,"story_fbid=") or contains(@href,"multi_permalinks=")]'
+                    '[not(ancestor::*[@data-ad-preview="message" or @data-ad-comet-preview="message" '
+                    'or @data-ad-rendering-role="story_message"]) ] or .//h2//a or .//h3//a][1]'
+                ))
+            cards = [(pool, index) for pool in pools for index in range(pool.count())]
+            total = len(cards)
+            stats['seen_cards'] = max(stats['seen_cards'], total)
             for index in range(total):
                 if cancel_event is not None and cancel_event.is_set():
                     stats["reason"] = "cancelled"
                     break
-                if clock() >= deadline:
+                if clock() >= feed_stop:
                     stats["reason"] = "time_budget"
                     break
 
-                article = articles.nth(index)
+                pool, card_index = cards[index]
+                article = pool.nth(card_index)
                 try:
-                    links = article.locator(
-                        'a[href*="/posts/"], a[href*="/permalink/"], a[href*="story_fbid="]'
-                    )
+                    links = self._post_links(article)
                     post_url, date_links = "", []
                     for link_index in range(links.count()):
                         link = links.nth(link_index)
                         href = link.get_attribute("href")
                         if not href:
                             continue
-                        candidate = urljoin("https://www.facebook.com/", href)
-                        parsed = urlparse(candidate)
-                        host = (parsed.hostname or "").lower()
-                        if parsed.scheme not in {"http", "https"} or (host != "facebook.com" and not host.endswith(".facebook.com")):
+                        candidate = self._group_post_link(href, group_ids)
+                        if not candidate:
                             continue
-                        if {"comment_id", "reply_comment_id"} & parse_qs(parsed.query).keys():
-                            continue
-                        if group_ids:
-                            path_match = re.match(r"^/groups/([^/]+)/(?:posts|permalink)/[^/]+", parsed.path)
-                            if not path_match or path_match.group(1) not in group_ids:
-                                continue
-                        candidate = post_identity(candidate)
                         if not post_url:
                             post_url = candidate
                         if candidate == post_url:
                             date_links.append(link)
                     if not post_url:
+                        stats['cards_without_post_link'] += 1
                         continue
                     is_new = post_url not in observed
                     observed.add(post_url)
@@ -672,23 +838,33 @@ class FacebookBrowser:
                         progress_callback(dict(stats))
                     if post_url in processed:
                         continue
-                    message_locator = article.locator(
-                        'div[data-ad-preview="message"]'
-                    )
-                    if message_locator.count():
-                        message = message_locator.first.inner_text(timeout=2000)
-                    else:
-                        message_locator = article.locator('[data-ad-comet-preview="message"]')
-                        if not message_locator.count():
-                            # An entire article can include buyer keywords in its
-                            # comments; those must not be mistaken for the post.
-                            continue
-                        message = message_locator.first.inner_text(timeout=2000)
-                    message = re.sub(r"\s+", " ", message).strip()
-                    if not message or not self.matches_buying_intent(message, phrases):
-                        processed.add(post_url)
+                    message = self._read_post_message(article)
+                    if not message:
+                        missing_body_urls.add(post_url)
+                        stats['skipped_no_body'] = len(missing_body_urls)
                         continue
-                    if message_filter is not None and not message_filter(message):
+                    missing_body_urls.discard(post_url)
+                    stats['skipped_no_body'] = len(missing_body_urls)
+                    is_ad = bool(advertising_reason(message))
+                    if is_ad:
+                        ad_urls.add(post_url)
+                        stats['skipped_ads'] = len(ad_urls)
+                    buyer_match = bool(not is_ad and is_customer_post(message, rules, products, catalog)
+                                       and (message_filter is None or message_filter(message)))
+                    explore_comments = False
+                    engagement = 0
+                    if include_comments and (buyer_match or (is_ad and has_interested_product(message, products, catalog))):
+                        labels = article.locator('[role="button"], button, a').all_inner_texts()
+                        for label in labels:
+                            match = re.search(r'([\d.,]+)\s*(k|m|nghìn|triệu)?\s*(?:bình luận|comments?)', label, re.I)
+                            if match:
+                                count = float(match[1].replace(',', '.')) if match[2] else int(re.sub(r'\D', '', match[1]))
+                                multiplier = 1000000 if (match[2] or '').lower() in {'m', 'triệu'} else 1000 if match[2] else 1
+                                engagement = max(engagement, int(count * multiplier))
+                        explore_comments = engagement >= (min_ad_comments if is_ad else 1)
+                    if not buyer_match and not explore_comments:
+                        irrelevant_urls.add(post_url)
+                        stats['skipped_irrelevant'] = len(irrelevant_urls)
                         processed.add(post_url)
                         continue
                     published = self._read_post_date(date_links, now, max_age_days)
@@ -733,7 +909,7 @@ class FacebookBrowser:
                     elif published.precision == "relative":
                         display = (published.oldest.strftime("%d/%m") + " – " + published.newest.strftime("%d/%m/%Y")
                                    if published.newest - published.oldest >= timedelta(days=1) else "≈ " + display)
-                    posts[post_url] = {
+                    record = {
                         "id": post_id,
                         "url": post_url,
                         "author": author,
@@ -744,9 +920,17 @@ class FacebookBrowser:
                         "published_display": display,
                         "source_url": group_url or source_url,
                     }
+                    if explore_comments:
+                        comment_sources[post_url] = dict(record, engagement=engagement, source_is_ad=is_ad)
+                        feed_stop = min(feed_stop, ad_feed_deadline if is_ad else feed_deadline)
+                    if buyer_match:
+                        posts[post_url] = record
                     if len(posts) >= max_posts:
                         break
-                except Exception:
+                except Exception as exc:
+                    error_urls.add((scroll_index, index))
+                    stats['extraction_errors'] = len(error_urls)
+                    stats['last_extraction_error'] = str(exc)
                     continue
 
             stalled = stalled + 1 if len(observed) == before_count else 0
@@ -767,7 +951,119 @@ class FacebookBrowser:
                 self._scroll_post_feed(page)
                 page.wait_for_timeout(1000)
 
+        if not observed and not (cancel_event is not None and cancel_event.is_set()):
+            stats['reason'] = 'feed_unreadable'
+            raise RuntimeError(
+                f'Không trích xuất được link bài nào từ {stats["seen_cards"]} khối nội dung trong nhóm. '
+                'Trang chưa tải xong, bị hạn chế truy cập hoặc giao diện Facebook chưa được nhận diện; không phải kết quả 0 khách hàng.'
+            )
+
+        if include_comments:
+            for source in sorted(comment_sources.values(), key=lambda item: (not item['source_is_ad'], item['published_at'], item['engagement']), reverse=True)[:10]:
+                if len(posts) >= max_posts or clock() >= deadline or (cancel_event is not None and cancel_event.is_set()):
+                    break
+                try:
+                    for comment in self.find_comment_buyers(source, rules=rules, products=products, catalog=catalog,
+                                                           cancel_event=cancel_event, deadline=deadline, clock=clock,
+                                                           now=now, max_age_days=max_age_days):
+                        posts[comment['url']] = comment
+                        if len(posts) >= max_posts:
+                            break
+                except Exception as exc:
+                    stats['comment_errors'] = stats.get('comment_errors', 0) + 1
+                    stats['last_comment_error'] = str(exc)
+                stats.update(found=len(posts), comment_sources_read=stats.get('comment_sources_read', 0) + 1)
+                if progress_callback:
+                    progress_callback(dict(stats))
+            stats['reason'] = ('cancelled' if cancel_event is not None and cancel_event.is_set() else
+                               'post_limit' if len(posts) >= max_posts else
+                               'time_budget' if clock() >= deadline else stats['reason'])
         return list(posts.values())
+
+    def find_comment_buyers(self, source, *, rules=None, products=None, catalog=None,
+                            cancel_event=None, deadline=float('inf'), clock=time.monotonic,
+                            now=None, max_age_days=15):
+        """Read bounded comment threads without mixing the post author's intent in."""
+        from backend.services.comment_rules import suggest_target
+        page = self.page
+        now = now or datetime.now(VIETNAM_TZ)
+        results = {}
+        if clock() >= deadline or (cancel_event is not None and cancel_event.is_set()):
+            return []
+        page.goto(source['url'], wait_until='domcontentloaded', timeout=30000)
+        page.wait_for_timeout(1000)
+        if not self.is_logged_in():
+            raise RuntimeError('Profile đã đăng xuất khi đọc bình luận.')
+        sorting = page.get_by_text(re.compile(r'^(?:Phù hợp nhất|Most relevant)$', re.I))
+        if sorting.count() and sorting.first.is_visible():
+            sorting.first.click(timeout=2000)
+            all_comments = page.get_by_text(re.compile(r'^(?:Tất cả bình luận|All comments)$', re.I))
+            if all_comments.count() and all_comments.last.is_visible():
+                all_comments.last.click(timeout=2000)
+                page.wait_for_timeout(300)
+        for _ in range(2 if source.get('source_is_ad') else 6):
+            if clock() >= deadline or (cancel_event is not None and cancel_event.is_set()):
+                break
+            links = page.locator('a[href*="comment_id="]')
+            for index in range(min(links.count(), 150)):
+                if clock() >= deadline or (cancel_event is not None and cancel_event.is_set()):
+                    break
+                link = links.nth(index)
+                href = urljoin(source['url'], link.get_attribute('href') or '')
+                query = parse_qs(urlparse(href).query)
+                comment_id = (query.get('reply_comment_id') or query.get('comment_id') or [''])[0]
+                if not comment_id:
+                    continue
+                linked_post = urlparse(href)
+                linked_query = parse_qs(linked_post.query)
+                linked_query.pop('comment_id', None)
+                linked_query.pop('reply_comment_id', None)
+                if post_identity(linked_post._replace(query=urlencode(linked_query, doseq=True)).geturl()) != source['url']:
+                    continue
+                # Use the verified source post URL, never an unrelated permalink.
+                base = urlparse(source['url'])
+                identity = parse_qs(base.query)
+                identity['comment_id'] = query['comment_id']
+                if query.get('reply_comment_id'):
+                    identity['reply_comment_id'] = query['reply_comment_id']
+                url = post_identity(base._replace(query=urlencode(identity, doseq=True)).geturl())
+                if url in results:
+                    continue
+                raw = link.evaluate('''el => {
+                    const root = el.closest('[role="article"]');
+                    if (!root || root.querySelector('[data-ad-preview="message"], [data-ad-comet-preview="message"]')) return null;
+                    const bodies = [...root.querySelectorAll('[dir="auto"]')].filter(n => n.closest('[role="article"]') === root && !n.closest('a, [role="button"]') && !n.querySelector('[dir="auto"]'));
+                    const author = root.querySelector('a[role="link"], a[href]');
+                    return {message: bodies.map(n => n.innerText).filter(Boolean).join(' '), author: author?.innerText || ''};
+                }''')
+                if not raw or not raw.get('message'):
+                    continue
+                published = self._read_post_date([link], now, max_age_days)
+                if not published or published.classification(now, max_age_days) != 'recent':
+                    continue
+                candidate = dict(raw, id=comment_id, url=url, target_type='comment',
+                                 parent_url=source['url'], parent_message=source['message'],
+                                 source_url=source['source_url'], engagement=source['engagement'],
+                                 published_at=published.oldest.isoformat(), published_until=published.newest.isoformat(),
+                                 published_display=published.oldest.strftime('%d/%m/%Y %H:%M'))
+                if suggest_target(candidate, rules, products, catalog)['status'] in {'draft', 'manual_review'}:
+                    results[url] = candidate
+                if len(results) >= 50:
+                    return list(results.values())
+            more = page.get_by_text(re.compile(r'^(?:xem (?:thêm|các) bình luận|view (?:more|previous) comments|xem thêm câu trả lời|view more replies)', re.I))
+            clicked = False
+            for index in range(min(more.count(), 10)):
+                if clock() >= deadline or (cancel_event is not None and cancel_event.is_set()):
+                    break
+                button = more.nth(index)
+                if button.is_visible():
+                    button.click(timeout=2000)
+                    clicked = True
+                    break
+            if not clicked:
+                break
+            page.wait_for_timeout(500)
+        return list(results.values())
 
     def comment_on_post(self, post_url, message):
         """Submit a comment through the logged-in browser session."""
@@ -779,7 +1075,7 @@ class FacebookBrowser:
 
         parsed = urlparse(post_url)
         post_host = (parsed.hostname or "").lower()
-        if post_host != "facebook.com" and not post_host.endswith(".facebook.com"):
+        if parsed.scheme not in {'https', 'http'} or parsed.username is not None or (post_host != "facebook.com" and not post_host.endswith(".facebook.com")):
             raise ValueError("Link bài viết không thuộc Facebook.")
 
         page.goto(post_url, wait_until="domcontentloaded", timeout=30000)
@@ -787,14 +1083,33 @@ class FacebookBrowser:
         if not self.is_logged_in():
             raise RuntimeError("Profile này đã đăng xuất. Hãy đăng nhập lại trong Accounts.")
 
+        query = parse_qs(parsed.query)
+        if query.get('comment_id') or query.get('reply_comment_id'):
+            return self._reply_to_comment(post_url, message.strip())
+
         articles = page.locator('[role="article"]')
         for article_index in reversed(range(articles.count())):
-            editors = articles.nth(article_index).locator(
+            article = articles.nth(article_index)
+            if not article.locator('[data-ad-preview="message"], [data-ad-comet-preview="message"]').count():
+                continue
+            links = article.locator('a[href*="/posts/"], a[href*="/permalink/"], a[href*="story_fbid="]')
+            owns_target = False
+            for link_index in range(links.count()):
+                link = links.nth(link_index)
+                href = urljoin(post_url, link.get_attribute('href') or '')
+                if post_identity(href) == post_identity(post_url) and link.evaluate('(el) => Boolean(el.closest("[role=article]")?.querySelector("[data-ad-preview=message], [data-ad-comet-preview=message]"))'):
+                    owns_target = True
+                    break
+            if not owns_target:
+                continue
+            editors = article.locator(
                 '[contenteditable="true"][role="textbox"]'
             )
             for index in range(editors.count()):
                 editor = editors.nth(index)
                 try:
+                    if not editor.evaluate('(el) => Boolean(el.closest("[role=article]")?.querySelector("[data-ad-preview=message], [data-ad-comet-preview=message]"))'):
+                        continue
                     if not editor.is_visible():
                         continue
                     editor.fill(message.strip(), timeout=3000)
@@ -808,28 +1123,53 @@ class FacebookBrowser:
                 except Exception:
                     continue
 
-        for selector in (
-            '[contenteditable="true"][role="textbox"][aria-label*="comment" i]',
-            '[contenteditable="true"][role="textbox"][aria-label*="bình luận" i]',
-        ):
-            editor = page.locator(selector).first
-            try:
-                if not editor.is_visible():
-                    continue
-                editor.fill(message.strip(), timeout=3000)
-                editor.press("Enter")
-                page.wait_for_timeout(1200)
-                if editor.inner_text(timeout=1000).strip() == message.strip():
-                    raise RuntimeError("Facebook chưa xác nhận gửi bình luận.")
-                return {"url": post_url, "sent": True}
-            except RuntimeError:
-                raise
-            except Exception:
-                continue
-
         raise RuntimeError(
             "Không tìm thấy ô bình luận. Hãy mở bài viết và kiểm tra quyền của tài khoản."
         )
+
+    def _reply_to_comment(self, target_url, message):
+        """Fail closed if the exact comment or its own reply editor is unavailable."""
+        page = self.page
+        query = parse_qs(urlparse(target_url).query)
+        target_id = (query.get('reply_comment_id') or query.get('comment_id'))[0]
+        links = page.locator('a[href*="comment_id="]')
+        for index in range(links.count()):
+            link = links.nth(index)
+            href = urljoin(target_url, link.get_attribute('href') or '')
+            candidate_query = parse_qs(urlparse(href).query)
+            candidate_id = (candidate_query.get('reply_comment_id') or candidate_query.get('comment_id') or [''])[0]
+            if candidate_id != target_id or post_identity(href) != post_identity(target_url):
+                continue
+            root = link.locator('xpath=ancestor::*[@role="article"][1]')
+            if not root.count() or root.locator('[data-ad-preview="message"], [data-ad-comet-preview="message"]').count():
+                continue
+            replies = root.get_by_role('button', name=re.compile(r'^(?:Trả lời|Reply)$', re.I))
+            for reply_index in range(replies.count()):
+                reply = replies.nth(reply_index)
+                if not reply.is_visible():
+                    continue
+                # A nested reply button belongs to another comment.
+                if reply.locator('xpath=ancestor::*[@role="article"][1]').evaluate('(el, id) => [...el.querySelectorAll("a[href]")].some(a => { const q = new URL(a.href).searchParams; return a.closest("[role=article]") === el && (q.get("reply_comment_id") || q.get("comment_id")) === id; })', target_id):
+                    reply.click(timeout=3000)
+                    break
+            else:
+                raise RuntimeError('Không tìm thấy nút Trả lời của bình luận đã chọn.')
+            editors = root.locator('[contenteditable="true"][role="textbox"]')
+            for editor_index in range(editors.count()):
+                editor = editors.nth(editor_index)
+                if not editor.is_visible():
+                    continue
+                owner = editor.locator('xpath=ancestor::*[@role="article"][1]')
+                if not owner.evaluate('(el, id) => [...el.querySelectorAll("a[href]")].some(a => a.closest("[role=article]") === el && ((new URL(a.href).searchParams.get("reply_comment_id") || new URL(a.href).searchParams.get("comment_id")) === id))', target_id):
+                    continue
+                editor.fill(message, timeout=3000)
+                editor.press('Enter')
+                page.wait_for_timeout(1200)
+                if editor.inner_text(timeout=1000).strip() == message:
+                    raise RuntimeError('Facebook chưa xác nhận gửi trả lời.')
+                return {'url': target_url, 'sent': True, 'target_type': 'comment'}
+            raise RuntimeError('Không tìm thấy ô trả lời của bình luận đã chọn.')
+        raise RuntimeError('Không tìm thấy đúng bình luận đã chọn; chưa gửi trả lời.')
 
     # =========================================================
     # GROUPS

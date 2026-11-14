@@ -150,7 +150,7 @@ QPushButton#accountOpenButton:disabled, QPushButton#accountStopButton:disabled {
 }
 QPushButton#disclosureButton { color: #59749e; background: transparent; border: none; padding: 3px 0; text-align: left; font-weight: 500; }
 QPushButton::menu-indicator { subcontrol-position: right center; right: 7px; }
-QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDateEdit {
+QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDateEdit, QDateTimeEdit {
     color: #334764;
     background: #ffffff;
     border: 1px solid #dfe6f0;
@@ -159,9 +159,9 @@ QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDateEdit {
     selection-background-color: #2563eb;
     selection-color: #ffffff;
 }
-QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QComboBox:focus, QSpinBox:focus, QDateEdit:focus { border-color: #80a9f5; }
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QComboBox:focus, QSpinBox:focus, QDateEdit:focus, QDateTimeEdit:focus { border-color: #80a9f5; }
 QLineEdit:disabled, QTextEdit:disabled, QComboBox:disabled, QSpinBox:disabled { color: #9ba7b9; background: #f8fafc; border-color: #e8edf4; }
-QComboBox::drop-down, QDateEdit::drop-down { border: none; width: 24px; }
+QComboBox::drop-down, QDateEdit::drop-down, QDateTimeEdit::drop-down { border: none; width: 24px; }
 QComboBox QAbstractItemView { background: white; color: #334764; selection-background-color: #edf3ff; selection-color: #2563eb; border: 1px solid #dfe6f0; padding: 5px; }
 QLineEdit#toolbarSearch { background: #ffffff; border-radius: 7px; padding: 0 12px; }
 QCheckBox { color: #61738b; spacing: 8px; font-size: 9pt; }
@@ -219,8 +219,28 @@ QMenu::item:disabled { color: #a9b3c3; }
 QToolTip { color: #ffffff; background: #263a57; border: none; border-radius: 5px; padding: 6px 9px; font-size: 9pt; }
 QFrame#statCard[variant="facebook"] QLabel#statValue { font-size: 16pt; }
 QLabel#emptyState { color: #92a1b6; font-size: 10pt; padding: 24px; }
-QComboBox::down-arrow, QDateEdit::down-arrow { image: url("@assets@/chevron-down.svg"); width: 12px; height: 12px; }
+QComboBox::down-arrow, QDateEdit::down-arrow, QDateTimeEdit::down-arrow { image: url("@assets@/chevron-down.svg"); width: 12px; height: 12px; }
 QSpinBox::up-button { subcontrol-origin: border; subcontrol-position: top right; width: 23px; border: none; border-left: 1px solid #edf1f7; border-top-right-radius: 7px; background: #f8fafd; }
 QSpinBox::down-button { subcontrol-origin: border; subcontrol-position: bottom right; width: 23px; border: none; border-left: 1px solid #edf1f7; border-bottom-right-radius: 7px; background: #f8fafd; }
 QSpinBox::up-arrow { image: url("@assets@/chevron-up.svg"); width: 10px; height: 10px; }
 QSpinBox::down-arrow { image: url("@assets@/chevron-down.svg"); width: 10px; height: 10px; }
+QTabWidget#outreachTabs::pane {
+    border: 1px solid #dbe4f0;
+    border-radius: 10px;
+    background: #ffffff;
+    top: -1px;
+}
+QTabWidget#outreachTabs QTabBar::tab {
+    background: #edf2f9;
+    color: #52627c;
+    padding: 10px 14px;
+    margin-right: 4px;
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+}
+QTabWidget#outreachTabs QTabBar::tab:selected {
+    background: #ffffff;
+    color: #2563eb;
+    border: 1px solid #dbe4f0;
+    border-bottom-color: #ffffff;
+}

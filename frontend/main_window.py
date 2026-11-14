@@ -197,6 +197,11 @@ class MainWindow(QMainWindow):
         if customers_page and not customers_page.confirm_close():
             event.ignore()
             return
+        outreach_page = self.pages.get("MessengerPage")
+        if outreach_page:
+            outreach_page.scheduler.enabled = False
+            outreach_page.scheduler.timer.stop()
+            outreach_page.search_control.stop()
         accounts_page = self.pages.get("AccountsPage")
         if accounts_page:
             accounts_page.shutdown_finished.connect(self._finish_close)
